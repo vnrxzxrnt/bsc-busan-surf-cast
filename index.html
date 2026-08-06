@@ -165,7 +165,6 @@
     const oldLoad=window.loadSeaObservation;window.loadSeaObservation=async function(beach){const r=await oldLoad(beach);setTimeout(()=>drawMap(beach||currentBeach),100);return r};
     const myNav=document.querySelector('.nav button[data-target="profile"]');if(myNav)myNav.innerHTML='<b>◉</b>MY';
     const profile=document.querySelector('#profile');if(profile&&!profile.querySelector('.my-section'))profile.insertAdjacentHTML('beforeend','<section class="my-section"><h3>최근 방문한 해수욕장</h3><div class="my-row"><i>🏖</i><div><b>송정 해수욕장</b><small>오늘 · A구역 추천</small></div></div><div class="my-row"><i>🌉</i><div><b>광안리 해수욕장</b><small>지난주 · 패들보드</small></div></div></section><section class="my-section"><h3>나의 서핑 일지</h3><div class="my-row"><i>🌊</i><div><b>송정 A구역 · 초급 서핑</b><small>파도 0.7m · 14:00–17:00 · 즐거움 ★★★★★</small></div></div><div class="my-row"><i>📝</i><div><b>다음 목표</b><small>바람이 잔잔한 날 B구역 도전하기</small></div></div></section>');
-    setTimeout(()=>drawMap('songjeong'),400);
   })();
   </script>
   <style>
@@ -220,6 +219,14 @@
       let seaMap;
       function drawSeaZones(beach){const panel=document.querySelector('.beach-map-panel');const center=centers[beach];if(!panel||!center||!window.L)return;panel.innerHTML='<div class="beach-map-head"><h3>🗺 해상 분석 구역 지도</h3><p>점선 구역은 해수욕장 앞바다의 BSC 분석 구역입니다.</p></div><div class="beach-map" id="sea-zone-map"></div><div class="map-legend">각 구역은 바다 위에 표시됩니다. 현장 안전요원 안내와 공식 경보를 우선해 주세요.</div>';seaMap=L.map('sea-zone-map',{zoomControl:false,attributionControl:true});L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(seaMap);seaMap.setView(center,14);const wave=parseFloat(document.querySelector('.metric b')?.textContent)||.7,wind=parseFloat(document.querySelectorAll('.metric b')[1]?.textContent)||3.4;seaOffsets[beach].forEach((offset,index)=>{const lat=center[0]+offset[0],lon=center[1]+offset[1],d=.0025,label=String.fromCharCode(65+index);L.polygon([[lat,lon],[lat,lon+d],[lat+d*.78,lon+d],[lat+d*.78,lon]],{color:index===0?'#ff705b':'#0878ac',weight:index===0?3:2,dashArray:'7 6',fillOpacity:.16}).addTo(seaMap).bindPopup('<b>'+label+'구역</b><br>파고 '+Math.max(.1,wave+(index-2)*.1).toFixed(1)+'m · 풍속 '+Math.max(.1,wind+(index-2)*.4).toFixed(1)+'m/s')});L.circleMarker(center,{radius:7,color:'#075786',fillColor:'#13b8d2',fillOpacity:1}).addTo(seaMap).bindPopup('선택한 해수욕장');setTimeout(()=>seaMap.invalidateSize(),100)}
       const priorSelect=window.selectBeach;window.selectBeach=function(beach,button){priorSelect(beach,button);setTimeout(()=>drawSeaZones(beach),450)};
+    })();
+  </script>
+  <script>
+    (()=>{
+      const communityBeaches={songjeong:'송정 해수욕장',haeundae:'해운대 해수욕장',gwangalli:'광안리 해수욕장',songdo:'송도 해수욕장',dadaepo:'다대포 해수욕장',ilgwang:'일광 해수욕장',imrang:'임랑 해수욕장'};
+      const beforeSelect=window.selectBeach;window.selectBeach=function(beach,button){window.bscSelectedBeach=beach;beforeSelect(beach,button)};
+      window.community=function(){const beach=window.bscSelectedBeach||'songjeong',name=communityBeaches[beach];openSheet(name+' 커뮤니티','<p><b>'+name+'</b>에서 함께할 서핑·해양 레저 모임을 만들 수 있어요.</p><input id="community-name" class="onboarding-input" maxlength="30" placeholder="예: 토요일 초급 서핑 모임" /><button class="choice" onclick="createBeachCommunity(\''+beach+'\')">＋ 이 지역 커뮤니티 만들기</button><div id="community-created"></div>')};
+      window.createBeachCommunity=function(beach){const input=document.getElementById('community-name'),title=input.value.trim();if(!title){input.focus();return}const key='bsc-community-'+beach;const groups=JSON.parse(localStorage.getItem(key)||'[]');groups.push({title,date:new Date().toLocaleDateString('ko-KR')});localStorage.setItem(key,JSON.stringify(groups));document.getElementById('community-created').innerHTML='<p class="safe">✓ '+title+' 모임을 만들었어요. '+communityBeaches[beach]+' 커뮤니티에서 참여자를 기다립니다.</p>';input.value=''};
     })();
   </script>
 </body></html>
