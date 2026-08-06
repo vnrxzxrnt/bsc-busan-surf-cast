@@ -213,4 +213,13 @@
       new MutationObserver(localizeSearch).observe(document.body,{childList:true,subtree:true});localizeSearch();
     })();
   </script>
+  <script>
+    (()=>{
+      const centers={haeundae:[35.1587,129.1604],songjeong:[35.178,129.201],gwangalli:[35.153,129.118],songdo:[35.0765,129.0169],dadaepo:[35.0467,128.9674],ilgwang:[35.2665,129.2338],imrang:[35.3181,129.2582]};
+      const seaOffsets={haeundae:[[-.006,-.003],[-.006,-.0003],[-.006,.0024],[-.0087,-.003],[-.0087,-.0003],[-.0087,.0024]],songjeong:[[-.003,.002],[-.003,.0047],[-.003,.0074],[.0002,.002],[.0002,.0047],[.0002,.0074]],gwangalli:[[-.006,-.003],[-.006,-.0003],[-.006,.0024],[-.0087,-.003],[-.0087,-.0003],[-.0087,.0024]],songdo:[[-.006,.001],[-.006,.0037],[-.006,.0064],[-.0087,.001],[-.0087,.0037],[-.0087,.0064]],dadaepo:[[-.006,-.007],[-.006,-.0043],[-.006,-.0016],[-.0087,-.007],[-.0087,-.0043],[-.0087,-.0016]],ilgwang:[[-.003,.002],[-.003,.0047],[-.003,.0074],[.0002,.002],[.0002,.0047],[.0002,.0074]],imrang:[[-.003,.002],[-.003,.0047],[-.003,.0074],[.0002,.002],[.0002,.0047],[.0002,.0074]]};
+      let seaMap;
+      function drawSeaZones(beach){const panel=document.querySelector('.beach-map-panel');const center=centers[beach];if(!panel||!center||!window.L)return;panel.innerHTML='<div class="beach-map-head"><h3>🗺 해상 분석 구역 지도</h3><p>점선 구역은 해수욕장 앞바다의 BSC 분석 구역입니다.</p></div><div class="beach-map" id="sea-zone-map"></div><div class="map-legend">각 구역은 바다 위에 표시됩니다. 현장 안전요원 안내와 공식 경보를 우선해 주세요.</div>';seaMap=L.map('sea-zone-map',{zoomControl:false,attributionControl:true});L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(seaMap);seaMap.setView(center,14);const wave=parseFloat(document.querySelector('.metric b')?.textContent)||.7,wind=parseFloat(document.querySelectorAll('.metric b')[1]?.textContent)||3.4;seaOffsets[beach].forEach((offset,index)=>{const lat=center[0]+offset[0],lon=center[1]+offset[1],d=.0025,label=String.fromCharCode(65+index);L.polygon([[lat,lon],[lat,lon+d],[lat+d*.78,lon+d],[lat+d*.78,lon]],{color:index===0?'#ff705b':'#0878ac',weight:index===0?3:2,dashArray:'7 6',fillOpacity:.16}).addTo(seaMap).bindPopup('<b>'+label+'구역</b><br>파고 '+Math.max(.1,wave+(index-2)*.1).toFixed(1)+'m · 풍속 '+Math.max(.1,wind+(index-2)*.4).toFixed(1)+'m/s')});L.circleMarker(center,{radius:7,color:'#075786',fillColor:'#13b8d2',fillOpacity:1}).addTo(seaMap).bindPopup('선택한 해수욕장');setTimeout(()=>seaMap.invalidateSize(),100)}
+      const priorSelect=window.selectBeach;window.selectBeach=function(beach,button){priorSelect(beach,button);setTimeout(()=>drawSeaZones(beach),450)};
+    })();
+  </script>
 </body></html>
