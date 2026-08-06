@@ -168,4 +168,10 @@
     setTimeout(()=>drawMap('songjeong'),400);
   })();
   </script>
+  <style>
+    .level-grid button{min-height:76px;padding:10px 6px!important;line-height:1.15}.level-grid button small{display:block;margin-top:6px;color:#638397;font-size:10px;font-weight:700;line-height:1.25;white-space:pre-line}.level-grid button.selected small{color:#087b9b}
+  </style>
+  <script>
+    (()=>{const notes={beginner:'처음 타보거나\n기본 자세를 연습 중',intermediate:'파도를 골라 타고\n기본 턴이 가능해요',advanced:'경험이 풍부하고\n여러 기술을 소화해요'};const addNotes=()=>document.querySelectorAll('.level-grid button[data-level]').forEach(b=>{if(b.querySelector('small'))return;const s=document.createElement('small');s.textContent=notes[b.dataset.level];b.append(s)});new MutationObserver(addNotes).observe(document.body,{childList:true,subtree:true});addNotes()})();
+  </script>
 </body></html>
