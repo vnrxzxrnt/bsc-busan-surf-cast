@@ -3946,3 +3946,432 @@
   );
 })();
 </script>
+<!-- BSC Chat Bubble + Delete V6 -->
+<style>
+  .bsc6-chat-list{
+    display:flex !important;
+    flex-direction:column;
+    gap:10px;
+    padding:12px;
+  }
+
+  .bsc6-message-row{
+    display:flex;
+    flex-direction:column;
+    max-width:82%;
+  }
+
+  .bsc6-message-row.other{
+    align-self:flex-start;
+    align-items:flex-start;
+  }
+
+  .bsc6-message-row.mine{
+    align-self:flex-end;
+    align-items:flex-end;
+  }
+
+  .bsc6-sender{
+    margin:0 6px 4px;
+    font-size:11px;
+    font-weight:800;
+    color:#597482;
+  }
+
+  .bsc6-message-row.mine .bsc6-sender{
+    color:#0877ad;
+  }
+
+  .bsc6-bubble{
+    position:relative;
+    padding:10px 12px;
+    border-radius:16px;
+    font-size:13px;
+    line-height:1.45;
+    overflow-wrap:anywhere;
+    white-space:pre-wrap;
+  }
+
+  .bsc6-message-row.other .bsc6-bubble{
+    background:#ffffff;
+    color:#163c4e;
+    border:1px solid #dcebf1;
+    border-bottom-left-radius:5px;
+  }
+
+  .bsc6-message-row.mine .bsc6-bubble{
+    background:#063b5d;
+    color:white;
+    border-bottom-right-radius:5px;
+  }
+
+  .bsc6-message-info{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    margin:4px 5px 0;
+    font-size:9px;
+    color:#8498a2;
+  }
+
+  .bsc6-message-row.mine .bsc6-message-info{
+    justify-content:flex-end;
+  }
+
+  .bsc6-delete{
+    border:0;
+    padding:2px 5px;
+    background:transparent;
+    color:#d76557;
+    font-size:10px;
+    cursor:pointer;
+  }
+
+  .bsc6-delete:hover{
+    text-decoration:underline;
+  }
+</style>
+
+<script>
+(() => {
+  if (!window.supabase) return;
+
+  const db6 = window.supabase.createClient(
+    'https://qoxnqmztdhlbwzwgntkc.supabase.co',
+    'sb_publishable_iuh253NYT7p1D7QMToox1w_ab5Q1CS3'
+  );
+
+  let renderingV6 = false;
+  let currentPostV6 = null;
+  let chatObserverV6 = null;
+  let chatBoxV6 = null;
+
+  function nicknameV6(){
+    return (
+      localStorage.getItem('bsc-active-nickname') ||
+      localStorage.getItem('bsc-v3-nickname') ||
+      localStorage.getItem('bsc-my-nickname') ||
+      ''
+    ).trim();
+  }
+
+  function escapeV6(value){
+    return String(value ?? '')
+      .replaceAll('&','&amp;')
+      .replaceAll('<','&lt;')
+      .replaceAll('>','&gt;')
+      .replaceAll('"','&quot;')
+      .replaceAll("'",'&#039;');
+  }
+
+  async function getMyPostV6(){
+    const nickname = nicknameV6();
+
+    if (!nickname) return null;
+
+    const { data, error } =
+      await db6
+        .from('community_members')
+        .select('post_id')
+        .ilike('nickname', nickname)
+        .limit(1)
+        .maybeSingle();
+
+    if (error || !data) {
+      console.error(
+        'membership lookup',
+        error
+      );
+
+      return null;
+    }
+
+    return data.post_id;
+  }
+
+  async function renderBubblesV6(){
+    const box =
+      document.getElementById(
+        'bsc4-messages'
+      );
+
+    if (!box || renderingV6) return;
+
+    const nickname =
+      nicknameV6();
+
+    const postId =
+      currentPostV6 ||
+      await getMyPostV6();
+
+    if (!postId) return;
+
+    currentPostV6 = postId;
+    renderingV6 = true;
+
+    if (chatObserverV6) {
+      chatObserverV6.disconnect();
+    }
+
+    const { data, error } =
+      await db6
+        .from('community_messages')
+        .select(
+          'id,post_id,nickname,message,created_at'
+        )
+        .eq('post_id', postId)
+        .order(
+          'created_at',
+          { ascending:true }
+        )
+        .limit(100);
+
+    if (error) {
+      console.error(
+        'chat load error',
+        error
+      );
+
+      renderingV6 = false;
+      reconnectObserverV6(box);
+      return;
+    }
+
+    const rows = data || [];
+
+    box.classList.add(
+      'bsc6-chat-list'
+    );
+
+    if (!rows.length) {
+      box.innerHTML =
+        '<div class="bsc-community-status">첫 메시지를 남겨보세요 🌊</div>';
+
+      renderingV6 = false;
+      reconnectObserverV6(box);
+      return;
+    }
+
+    box.innerHTML =
+      rows.map(row => {
+
+        const mine =
+          String(row.nickname)
+            .trim()
+            .toLowerCase() ===
+          nickname.toLowerCase();
+
+        const time =
+          new Date(
+            row.created_at
+          ).toLocaleTimeString(
+            'ko-KR',
+            {
+              hour:'2-digit',
+              minute:'2-digit'
+            }
+          );
+
+        return `
+          <div
+            class="
+              bsc6-message-row
+              ${mine ? 'mine' : 'other'}
+            "
+          >
+
+            <div class="bsc6-sender">
+              ${
+                mine
+                  ? '나 · ' + escapeV6(row.nickname)
+                  : '👤 ' + escapeV6(row.nickname)
+              }
+            </div>
+
+            <div class="bsc6-bubble">
+              ${escapeV6(row.message)}
+            </div>
+
+            <div class="bsc6-message-info">
+
+              <span>
+                ${escapeV6(time)}
+              </span>
+
+              ${
+                mine
+                  ? `
+                    <button
+                      class="bsc6-delete"
+                      type="button"
+                      data-message-id="${row.id}"
+                    >
+                      삭제
+                    </button>
+                  `
+                  : ''
+              }
+
+            </div>
+          </div>
+        `;
+      }).join('');
+
+    box.scrollTop =
+      box.scrollHeight;
+
+    renderingV6 = false;
+
+    reconnectObserverV6(box);
+  }
+
+  function reconnectObserverV6(box){
+    if (!box) return;
+
+    chatBoxV6 = box;
+
+    if (!chatObserverV6) {
+      chatObserverV6 =
+        new MutationObserver(() => {
+
+          if (renderingV6) return;
+
+          /*
+            기존 V4/V5 코드가 채팅 목록을 다시
+            일반 텍스트로 그린 경우 말풍선으로 재렌더링
+          */
+          clearTimeout(
+            window.__bsc6Timer
+          );
+
+          window.__bsc6Timer =
+            setTimeout(
+              renderBubblesV6,
+              80
+            );
+        });
+    }
+
+    chatObserverV6.observe(
+      box,
+      {
+        childList:true,
+        subtree:true
+      }
+    );
+  }
+
+  async function attachV6(){
+    const box =
+      document.getElementById(
+        'bsc4-messages'
+      );
+
+    if (!box) return;
+
+    if (chatBoxV6 !== box) {
+      currentPostV6 =
+        await getMyPostV6();
+
+      await renderBubblesV6();
+    }
+  }
+
+  /*
+    채팅창이 모달에 새로 만들어지는 것을 감지
+  */
+  const pageObserverV6 =
+    new MutationObserver(() => {
+
+      if (
+        document.getElementById(
+          'bsc4-messages'
+        )
+      ) {
+        attachV6();
+      }
+    });
+
+  pageObserverV6.observe(
+    document.body,
+    {
+      childList:true,
+      subtree:true
+    }
+  );
+
+  /*
+    내 메시지 삭제
+  */
+  document.addEventListener(
+    'click',
+    async event => {
+
+      const button =
+        event.target.closest(
+          '.bsc6-delete'
+        );
+
+      if (!button) return;
+
+      const messageId =
+        Number(
+          button.dataset.messageId
+        );
+
+      if (!messageId) return;
+
+      if (
+        !confirm(
+          '이 메시지를 삭제할까요?'
+        )
+      ) {
+        return;
+      }
+
+      const nickname =
+        nicknameV6();
+
+      button.disabled = true;
+      button.textContent = '삭제 중…';
+
+      const { error } =
+        await db6
+          .from('community_messages')
+          .delete()
+          .eq('id', messageId)
+          .ilike(
+            'nickname',
+            nickname
+          );
+
+      if (error) {
+        console.error(
+          'message delete error',
+          error
+        );
+
+        button.disabled = false;
+        button.textContent = '삭제';
+
+        alert(
+          '메시지를 삭제하지 못했습니다: ' +
+          (
+            error.message ||
+            '알 수 없는 오류'
+          )
+        );
+
+        return;
+      }
+
+      await renderBubblesV6();
+    }
+  );
+
+  /*
+    현재 이미 채팅창이 열려 있다면 바로 적용
+  */
+  attachV6();
+})();
+</script>
