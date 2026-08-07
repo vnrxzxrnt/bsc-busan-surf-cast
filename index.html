@@ -5353,3 +5353,251 @@
 
         ${
           joined
+<!-- BSC Join Fix V10 -->
+<script>
+(() => {
+  if (!window.supabase) return;
+
+  const db10 = window.supabase.createClient(
+    'https://qoxnqmztdhlbwzwgntkc.supabase.co',
+    'sb_publishable_iuh253NYT7p1D7QMToox1w_ab5Q1CS3'
+  );
+
+  function saveNick10(nickname) {
+    nickname = String(nickname || '').trim();
+
+    if (!nickname) return '';
+
+    localStorage.setItem(
+      'bsc-active-nickname',
+      nickname
+    );
+
+    localStorage.setItem(
+      'bsc-v3-nickname',
+      nickname
+    );
+
+    localStorage.setItem(
+      'bsc-my-nickname',
+      nickname
+    );
+
+    return nickname;
+  }
+
+  /*
+    V9 가입 폼을 직접 가로채서
+    확실하게 가입 처리합니다.
+  */
+  document.addEventListener(
+    'submit',
+    async event => {
+
+      const form = event.target;
+
+      if (
+        !(form instanceof HTMLFormElement) ||
+        form.id !== 'bsc9-join'
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopImmediatePropagation();
+
+      const nickname =
+        String(
+          form.elements.nickname.value || ''
+        ).trim();
+
+      const message =
+        document.getElementById(
+          'bsc9-join-message'
+        );
+
+      const button =
+        form.querySelector(
+          'button[type="submit"]'
+        );
+
+      if (!nickname) {
+        message.textContent =
+          '닉네임을 입력해 주세요.';
+        return;
+      }
+
+      /*
+        화면에 표시된 모임 ID를 가져옵니다.
+      */
+      const postId =
+        Number(
+          form.dataset.postId ||
+          window.__bscJoinPostId
+        );
+
+      if (!postId) {
+        message.textContent =
+          '모임 정보를 찾지 못했습니다.';
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent = '가입 중…';
+
+      /*
+        입력한 닉네임이 실제로
+        다른 모임에 가입돼 있는지 DB에서 확인
+      */
+      const check =
+        await db10
+          .from('community_members')
+          .select(
+            'id,post_id,nickname'
+          )
+          .ilike(
+            'nickname',
+            nickname
+          )
+          .limit(1)
+          .maybeSingle();
+
+      if (check.error) {
+        console.error(check.error);
+
+        button.disabled = false;
+        button.textContent =
+          '모임 가입하기';
+
+        message.textContent =
+          '가입 상태 확인에 실패했습니다.';
+        return;
+      }
+
+      if (check.data) {
+        button.disabled = false;
+        button.textContent =
+          '모임 가입하기';
+
+        if (
+          Number(check.data.post_id) ===
+          postId
+        ) {
+          saveNick10(nickname);
+
+          message.textContent =
+            '이미 이 모임에 가입되어 있습니다.';
+
+          setTimeout(() => {
+            window.community();
+          }, 500);
+
+        } else {
+          message.textContent =
+            '이미 다른 모임에 가입되어 있습니다. 먼저 그 모임에서 탈퇴해 주세요.';
+        }
+
+        return;
+      }
+
+      const result =
+        await db10
+          .from('community_members')
+          .insert({
+            post_id: postId,
+            nickname: nickname
+          });
+
+      button.disabled = false;
+      button.textContent =
+        '모임 가입하기';
+
+      if (result.error) {
+        console.error(result.error);
+
+        message.textContent =
+          result.error.code === '23505'
+            ? '이미 다른 모임에 가입되어 있습니다.'
+            : '가입 실패: ' +
+              (
+                result.error.message ||
+                '알 수 없는 오류'
+              );
+
+        return;
+      }
+
+      saveNick10(nickname);
+
+      message.textContent =
+        '🎉 모임에 가입했습니다.';
+
+      setTimeout(() => {
+        window.community();
+      }, 400);
+    },
+    true
+  );
+
+  /*
+    V9 상세화면의 가입 폼에
+    현재 모임 ID를 자동으로 연결합니다.
+  */
+  const observer10 =
+    new MutationObserver(() => {
+
+      const form =
+        document.getElementById(
+          'bsc9-join'
+        );
+
+      if (!form) return;
+
+      /*
+        bsc9 상세 화면은 직전에 클릭한 카드의 ID를
+        이 패치에서 저장해서 사용합니다.
+      */
+      if (window.__bscJoinPostId) {
+        form.dataset.postId =
+          String(
+            window.__bscJoinPostId
+          );
+      }
+    });
+
+  observer10.observe(
+    document.body,
+    {
+      childList: true,
+      subtree: true
+    }
+  );
+
+  /*
+    모임 카드 클릭 시 postId 기억.
+  */
+  document.addEventListener(
+    'click',
+    event => {
+
+      const card =
+        event.target.closest(
+          '[data-bsc9-post]'
+        );
+
+      if (!card) return;
+
+      window.__bscJoinPostId =
+        Number(
+          card.dataset.bsc9Post
+        );
+    },
+    true
+  );
+})();
+</script>
+async function openGroup9(postId) {
+  window.__bscJoinPostId = postId;
+
+  try {
+    await refresh9();
