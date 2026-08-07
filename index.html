@@ -254,7 +254,7 @@
   })();
 </script>
 <style>
-  .bsc-ai-request{width:100%;min-height:88px;margin-top:13px;padding:12px 13px;border:1px solid #cfe4ed;border-radius:13px;background:#fafdff;color:#183f55;font:inherit;font-size:13px;line-height:1.5;resize:vertical}.bsc-ai-request:focus{outline:2px solid #8dd8ed;border-color:#2ba8cc}.bsc-ai-profile{display:inline-block;margin-top:10px;padding:6px 9px;border-radius:99px;background:#e8f6fa;color:#07618a;font-size:11px;font-weight:800}.bsc-ai-preferences{display:grid;gap:10px;margin-top:13px;padding:12px;border:1px solid #d8ebf2;border-radius:14px;background:#f8fcfe}.bsc-ai-preferences label{display:grid;grid-template-columns:1fr auto;gap:5px;color:#315b70;font-size:12px;font-weight:800}.bsc-ai-preferences output{color:#087cac}.bsc-ai-preferences input{grid-column:1/-1;width:100%;accent-color:#0c91bd}.bsc-ai-preferences small{color:#718d9b;font-size:10px;line-height:1.4}.bsc-ai-result{margin-top:12px;padding:13px;border-radius:13px;background:#e8f9fc;color:#075787;font-size:13px;line-height:1.55}.bsc-ai-result[hidden]{display:none}.bsc-ai-zone{display:block;margin-bottom:6px;color:#ef644e;font-size:17px}.bsc-ai-error{background:#fff0ea;color:#994c36}
+  .bsc-ai-request{width:100%;min-height:76px;margin-top:13px;padding:12px 13px;border:1px solid #cfe4ed;border-radius:13px;background:#fafdff;color:#183f55;font:inherit;font-size:13px;line-height:1.5;resize:vertical}.bsc-ai-request:focus{outline:2px solid #8dd8ed;border-color:#2ba8cc}.bsc-ai-profile{display:inline-block;margin-top:10px;padding:6px 9px;border-radius:99px;background:#e8f6fa;color:#07618a;font-size:11px;font-weight:800}.bsc-ai-preferences{display:grid;gap:14px;margin-top:13px;padding:14px;border:1px solid #d8ebf2;border-radius:14px;background:#f8fcfe}.bsc-ai-preferences label{display:grid;grid-template-columns:1fr auto;gap:7px;color:#315b70;font-size:12px;font-weight:800}.bsc-ai-preferences output{min-width:45px;color:#087cac;text-align:right}.bsc-ai-preferences input{grid-column:1/-1;width:100%;height:24px;accent-color:#0c91bd;cursor:pointer}.bsc-ai-preferences small{color:#718d9b;font-size:10px;line-height:1.4}.bsc-ai-summary{padding:9px 10px;border-radius:10px;background:#e7f6fb;color:#07618a;font-size:11px;font-weight:800;text-align:center}.bsc-ai-result{margin-top:12px;padding:13px;border-radius:13px;background:#e8f9fc;color:#075787;font-size:13px;line-height:1.55}.bsc-ai-result[hidden]{display:none}.bsc-ai-zone{display:block;margin-bottom:6px;color:#ef644e;font-size:17px}.bsc-ai-match{display:block;margin-bottom:6px;color:#397389;font-size:11px;font-weight:800}.bsc-ai-error{background:#fff0ea;color:#994c36}
 </style>
 <script>
   (() => {
@@ -268,26 +268,34 @@
       const result = document.getElementById('bsc-ai-result');
       const request = document.getElementById('bsc-ai-request');
       if (!button || !result || !request) return;
-      const userRequest = request.value.trim();
-      if (!userRequest) { request.focus(); result.hidden = false; result.classList.add('bsc-ai-error'); result.textContent = '원하는 활동이나 조건을 입력해 주세요.'; return; }
+      const userRequest = request.value.trim() || '슬라이더로 설정한 조건에 가장 가까운 안전한 구역을 추천해 주세요.';
       button.disabled = true; button.textContent = 'AI가 구역을 분석하고 있어요...'; result.hidden = false; result.classList.remove('bsc-ai-error'); result.textContent = '현재 환경과 회원님의 실력을 함께 분석하고 있어요.';
       const beach = document.querySelector('#analysis h2')?.textContent || 'Busan beach';
       const values = [...document.querySelectorAll('#analysis .bsc-grid b')].map(el => el.textContent.replace(/[^0-9.]/g, ''));
-      const zones = ['A','B','C'].map(id => { const match = (document.getElementById('zone-' + id)?.textContent || '').match(/\d+(?:\.\d+)?/); return { id, wave: match?.[0] || values[0] || '0' }; });
+      const zoneProfiles = [{ waveStrength: 25, windStrength: 20, waterLevel: 25 }, { waveStrength: 50, windStrength: 50, waterLevel: 50 }, { waveStrength: 75, windStrength: 80, waterLevel: 75 }];
+      const zones = ['A','B','C'].map((id, index) => { const text = document.getElementById('zone-' + id)?.textContent || ''; const numbers = text.match(/\d+(?:\.\d+)?/g) || []; return { id, wave: numbers[0] || values[0] || '0', wind: numbers[1] || String(Math.max(.1, Number(values[1] || 0) + (index - 1) * .35).toFixed(1)), ...zoneProfiles[index] }; });
       const preferences = { wave: Number(document.getElementById('bsc-pref-wave')?.value || 0), wind: Number(document.getElementById('bsc-pref-wind')?.value || 0), depth: Number(document.getElementById('bsc-pref-depth')?.value || 0) };
       try {
         const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ beach, wave: values[0] || '0', wind: values[1] || '0', temperature: values[2] || '0', level: profile.level || '초급', userRequest, zones, preferences }) });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Unable to load the AI recommendation.');
         const zone = String(data.zone || '').toUpperCase().replace(/[^ABC]/g, '').slice(0, 1);
-        result.innerHTML = (zone ? '<strong class="bsc-ai-zone">추천 구역 · ' + zone + '구역</strong>' : '') + '<span></span>';
+        result.innerHTML = (zone ? '<strong class="bsc-ai-zone">추천 구역 · ' + zone + '구역</strong>' : '') + (Number.isFinite(Number(data.match)) ? '<small class="bsc-ai-match">설정 조건 일치도 · ' + Number(data.match) + '%</small>' : '') + '<span></span>';
         result.querySelector('span').textContent = data.recommendation;
         if (zone) {
           const zoneButton = [...document.querySelectorAll('#analysis .bsc-zone button')].find(el => el.textContent.trim().startsWith(zone));
           if (zoneButton) { document.querySelectorAll('#analysis .bsc-zone button').forEach(el => el.classList.remove('on')); zoneButton.classList.add('on'); zoneButton.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
         }
       } catch (error) { result.classList.add('bsc-ai-error'); result.textContent = error.message || 'AI 구역 추천을 불러오지 못했습니다.'; }
-      finally { button.disabled = false; button.textContent = '내게 맞는 구역 추천받기'; }
+      finally { button.disabled = false; button.textContent = '설정한 수치로 AI 추천받기'; }
+    }
+    function updatePreference(input) {
+      const output = document.getElementById(input.id + '-value');
+      if (output) output.value = input.value + '/100';
+      const preferences = ['wave','wind','depth'].map(key => Number(document.getElementById('bsc-pref-' + key)?.value || 0));
+      const summary = document.getElementById('bsc-ai-summary');
+      if (summary) summary.textContent = '파도 ' + preferences[0] + ' · 풍속 ' + preferences[1] + ' · 해수면 높이 ' + preferences[2];
+      localStorage.setItem('bsc-ai-preferences', JSON.stringify(preferences));
     }
     function installAiRecommendation() {
       const refresh = window.BSC?.refresh;
@@ -299,8 +307,10 @@
         const target = analysis.querySelector('.dashboard');
         const profile = JSON.parse(localStorage.getItem('bsc-member-profile') || 'null');
         const level = profile?.level || '로그인 필요';
-        const defaults = /고급|advanced/i.test(level) ? [75,55,70] : /중급|intermediate/i.test(level) ? [50,40,50] : [25,20,30];
-        target?.insertAdjacentHTML('beforeend', '<section class="bsc-card"><h3>AI 맞춤 구역 추천</h3><p>원하는 활동과 조건을 말하면 현재 해양 환경과 프로필 난이도를 바탕으로 적절한 구역을 추천해 드려요.</p><span class="bsc-ai-profile">프로필 난이도 · ' + level + '</span><div class="bsc-ai-preferences"><label>원하는 파도 세기 <output id="bsc-pref-wave-value">' + defaults[0] + '</output><input id="bsc-pref-wave" type="range" min="0" max="100" value="' + defaults[0] + '" oninput="document.getElementById(\'bsc-pref-wave-value\').value=this.value"></label><label>원하는 풍속 <output id="bsc-pref-wind-value">' + defaults[1] + '</output><input id="bsc-pref-wind" type="range" min="0" max="100" value="' + defaults[1] + '" oninput="document.getElementById(\'bsc-pref-wind-value\').value=this.value"></label><label>선호 수심 <output id="bsc-pref-depth-value">' + defaults[2] + '</output><input id="bsc-pref-depth" type="range" min="0" max="100" value="' + defaults[2] + '" oninput="document.getElementById(\'bsc-pref-depth-value\').value=this.value"></label><small>0은 약함·잔잔함·얕음을, 100은 강함·깊음을 뜻하는 선호도입니다. 수심은 실시간 측정값이 아니며 현장 안내를 확인해야 합니다.</small></div><textarea class="bsc-ai-request" id="bsc-ai-request" maxlength="300" placeholder="예: 보드 균형을 연습하기 좋은 안전한 구역을 알려줘"></textarea><button class="bsc-cta" id="bsc-ai-button">내게 맞는 구역 추천받기</button><div class="bsc-ai-result" id="bsc-ai-result" aria-live="polite" hidden></div></section>');
+        const levelDefaults = /고급|advanced/i.test(level) ? [75,55,70] : /중급|intermediate/i.test(level) ? [50,40,50] : [25,20,30];
+        let defaults = levelDefaults; try { const saved = JSON.parse(localStorage.getItem('bsc-ai-preferences') || 'null'); if (Array.isArray(saved) && saved.length === 3) defaults = saved.map(value => Math.max(0, Math.min(100, Number(value) || 0))); } catch {}
+        target?.insertAdjacentHTML('beforeend', '<section class="bsc-card"><h3>AI 맞춤 구역 추천</h3><p>아래 수치를 직접 조절하면 현재 해양 환경과 프로필 난이도를 함께 비교해 가장 가까운 구역을 추천해 드려요.</p><span class="bsc-ai-profile">프로필 난이도 · ' + level + '</span><div class="bsc-ai-preferences"><label>파도 세기 <output id="bsc-pref-wave-value">' + defaults[0] + '/100</output><input id="bsc-pref-wave" type="range" min="0" max="100" step="1" value="' + defaults[0] + '" aria-label="원하는 파도 세기"></label><label>풍속 <output id="bsc-pref-wind-value">' + defaults[1] + '/100</output><input id="bsc-pref-wind" type="range" min="0" max="100" step="1" value="' + defaults[1] + '" aria-label="원하는 풍속"></label><label>해수면 높이 <output id="bsc-pref-depth-value">' + defaults[2] + '/100</output><input id="bsc-pref-depth" type="range" min="0" max="100" step="1" value="' + defaults[2] + '" aria-label="원하는 해수면 높이"></label><div class="bsc-ai-summary" id="bsc-ai-summary">파도 ' + defaults[0] + ' · 풍속 ' + defaults[1] + ' · 해수면 높이 ' + defaults[2] + '</div><small>0은 약함·잔잔함·낮음을, 100은 강함·높음을 뜻합니다. 해수면 높이는 구역 선택용 상대 선호도이며 실제 수심·조위가 아니므로 현장 안내를 확인하세요.</small></div><textarea class="bsc-ai-request" id="bsc-ai-request" maxlength="300" placeholder="추가 요청이 있다면 입력하세요 (선택)"></textarea><button class="bsc-cta" id="bsc-ai-button">설정한 수치로 AI 추천받기</button><div class="bsc-ai-result" id="bsc-ai-result" aria-live="polite" hidden></div></section>');
+        document.querySelectorAll('.bsc-ai-preferences input[type="range"]').forEach(input => input.addEventListener('input', () => updatePreference(input)));
         document.getElementById('bsc-ai-button')?.addEventListener('click', aiRecommendation);
       }
       };
