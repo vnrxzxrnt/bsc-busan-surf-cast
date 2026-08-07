@@ -27,7 +27,7 @@ export default async function handler(req, res) {
   const prompt = `당신은 부산 해변의 안전 중심 서핑 코치입니다. 다음 정보를 바탕으로 한국어로 3문장 이내의 짧은 개인 맞춤 추천을 작성하세요. 현장 안전요원과 공식 경보를 항상 우선하라고 마지막에 덧붙이세요. 과장하거나 정확하지 않은 예측은 하지 마세요.\n해변: ${String(beach).slice(0, 50)}\n파고: ${String(wave).slice(0, 20)}m\n풍속: ${String(wind).slice(0, 20)}m/s\n기온: ${String(temperature).slice(0, 20)}°C\n사용자 실력: ${String(level).slice(0, 30)}`;
 
   try {
-    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent", {
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY },
       body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
