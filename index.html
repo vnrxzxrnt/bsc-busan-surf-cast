@@ -126,7 +126,133 @@
   modal.addEventListener('click',e=>{if(e.target===modal)closeSheet()})
 </script>
 <style>
-  .bsc-ai-request{width:100%;min-height:88px;margin-top:13px;padding:12px 13px;border:1px solid #cfe4ed;border-radius:13px;background:#fafdff;color:#183f55;font:inherit;font-size:13px;line-height:1.5;resize:vertical}.bsc-ai-request:focus{outline:2px solid #8dd8ed;border-color:#2ba8cc}.bsc-ai-profile{display:inline-block;margin-top:10px;padding:6px 9px;border-radius:99px;background:#e8f6fa;color:#07618a;font-size:11px;font-weight:800}.bsc-ai-result{margin-top:12px;padding:13px;border-radius:13px;background:#e8f9fc;color:#075787;font-size:13px;line-height:1.55}.bsc-ai-result[hidden]{display:none}.bsc-ai-zone{display:block;margin-bottom:6px;color:#ef644e;font-size:17px}.bsc-ai-error{background:#fff0ea;color:#994c36}
+  .sheet{max-height:calc(100vh - 18px);overflow-y:auto;overscroll-behavior:contain;padding-bottom:38px}
+  .bsc-guest-limits{display:grid;gap:7px;margin:13px 0;padding:13px;border-radius:14px;background:#f1f8fb;color:#527283;font-size:12px}.bsc-guest-limits b{color:#075787}.bsc-guest-limits span{display:block}
+  .profile-dot{width:auto!important;min-width:44px;padding:0 9px!important;color:#075787!important;font-size:12px!important;font-weight:900!important}
+  .bsc-rental-empty{padding:12px;border-radius:12px;background:#f3f8fa;color:#66808d;font-size:12px;line-height:1.5}
+  .beach-map-panel{display:none!important}
+</style>
+<script>
+  (() => {
+    if (!window.BSC) return;
+
+    const shopDetails = {
+      '서프홀릭 부산송정본점':'서핑 강습 · 보드와 슈트 대여',
+      '서프홀릭 다대포':'서핑 강습 · 장비 대여',
+      '송도해양레포츠센터':'SUP · 카약 등 해양레포츠 프로그램',
+      '다대포해양레포츠센터':'SUP · 서핑 · 카이트보딩 체험'
+    };
+    const rawMy = window.BSC.my;
+    const rawJournal = window.BSC.journal;
+    const rawWriteJournal = window.BSC.writeJournal;
+    const rawVisit = window.BSC.visit;
+    const rawCommunity = window.community;
+
+    function hasMember() {
+      try { return Boolean(JSON.parse(localStorage.getItem('bsc-member-profile') || 'null')); }
+      catch { return false; }
+    }
+    function requireLogin() {
+      openSheet('로그인이 필요한 기능입니다', '<p>AI 맞춤 추천, 커뮤니티, MY 기록장은 회원 프로필을 만든 뒤 사용할 수 있습니다.</p><button class="bsc-cta" type="button" onclick="closeSheet();BSC.openMember()">로그인 화면으로 이동</button>');
+    }
+    function protectedAction(action) {
+      if (!hasMember()) { requireLogin(); return; }
+      return action();
+    }
+
+    window.BSC.requireLogin = requireLogin;
+    window.BSC.my = () => protectedAction(rawMy);
+    window.BSC.journal = () => protectedAction(rawJournal);
+    window.BSC.writeJournal = () => protectedAction(rawWriteJournal);
+    window.BSC.visit = () => protectedAction(rawVisit);
+    window.community = () => protectedAction(rawCommunity);
+    window.BSC.community = window.community;
+    window.BSC.rental = name => {
+      const detail = shopDetails[name];
+      if (!detail) return;
+      const beachName = ({songjeong:'송정 해수욕장',songdo:'송도 해수욕장',dadaepo:'다대포 해수욕장'})[localStorage.getItem('bsc-selected-beach')] || '부산';
+      const url = 'https://map.naver.com/p/search/' + encodeURIComponent(name + ' ' + beachName + ' 부산');
+      openSheet(name + ' 대여', '<p>' + detail + '</p><p>운영 시간과 실제 대여 가능 장비는 방문 전에 업체에 확인해 주세요.</p><a class="bsc-cta" href="' + url + '" target="_blank" rel="noopener">대여점 문의하기 · 위치 보기</a>');
+    };
+
+    let enhancing = false;
+    function enhanceUi() {
+      if (enhancing) return;
+      enhancing = true;
+      document.querySelectorAll('.profile-dot').forEach(button => { if (button.textContent !== 'MY') button.textContent = 'MY'; });
+      const navMy = document.querySelector('.nav button[data-target="profile"]');
+      if (navMy) {
+        if (navMy.dataset.bscMy !== '1') { navMy.dataset.bscMy = '1'; navMy.innerHTML = '<b>MY</b>MY'; navMy.onclick = event => { event.preventDefault(); window.BSC.my(); }; }
+      }
+      const recordBack = document.querySelector('#profile .subhead .back');
+      const recordTitle = document.querySelector('#profile .subhead h2')?.textContent || '';
+      if (recordBack && /기록장/.test(recordTitle)) recordBack.onclick = () => window.BSC.my();
+
+      const wind = parseFloat(document.getElementById('an-wind')?.textContent || '');
+      ['A','B','C'].forEach((zone,index) => {
+        const element = document.getElementById('zone-' + zone);
+        if (!element || !Number.isFinite(wind) || element.textContent.includes('m/s')) return;
+        const wave = parseFloat(element.textContent);
+        if (Number.isFinite(wave)) element.textContent = wave.toFixed(1) + 'm · ' + Math.max(.1,wind+(index-1)*.35).toFixed(1) + 'm/s';
+      });
+      document.querySelectorAll('#analysis .bsc-card').forEach(card => {
+        const heading = card.querySelector('h3');
+        if (heading?.textContent === '해상 분석 구역') {
+          const description = card.querySelector('p');
+          if (description) description.textContent = '첨부 예시처럼 해안선을 따라 나눈 BSC 분석 구역이며, 육지와 하천은 제외했습니다.';
+        }
+        if (heading?.textContent === '근처 장비 대여점') {
+          heading.textContent = '확인된 장비 대여점';
+          const list = card.querySelector('.bsc-list');
+          if (list && !list.children.length) list.innerHTML = '<div class="bsc-rental-empty">현재 온라인에서 확인된 상시 장비 대여점이 없습니다. 가상의 업체는 표시하지 않아요.</div>';
+          list?.querySelectorAll('.bsc-row').forEach(row => {
+            const name = row.querySelector('b')?.textContent || '';
+            const small = row.querySelector('small');
+            if (small && shopDetails[name]) small.textContent = shopDetails[name];
+          });
+        }
+      });
+      enhancing = false;
+    }
+    new MutationObserver(() => queueMicrotask(enhanceUi)).observe(document.body,{childList:true,subtree:true,characterData:true});
+    enhanceUi();
+  })();
+</script>
+<script>
+  (() => {
+    if (!window.BSC) return;
+    const shopDetails={'서프홀릭 부산송정본점':'서핑 강습 · 보드와 슈트 대여','서프홀릭 다대포':'서핑 강습 · 장비 대여','송도해양레포츠센터':'SUP · 카약 등 해양레포츠 프로그램','다대포해양레포츠센터':'SUP · 서핑 · 카이트보딩 체험'};
+    const rawMy=window.BSC.my,rawJournal=window.BSC.journal,rawWriteJournal=window.BSC.writeJournal,rawVisit=window.BSC.visit,rawCommunity=window.community;
+    const hasMember=()=>{try{return Boolean(JSON.parse(localStorage.getItem('bsc-member-profile')||'null'))}catch{return false}};
+    function requireLogin(){openSheet('로그인이 필요한 기능입니다','<p>AI 맞춤 추천, 커뮤니티, MY 기록장은 회원 프로필을 만든 뒤 사용할 수 있습니다.</p><button class="bsc-cta" type="button" onclick="closeSheet();BSC.openMember()">로그인 화면으로 이동</button>')}
+    const protect=action=>{if(!hasMember()){requireLogin();return}return action()};
+    window.BSC.requireLogin=requireLogin;
+    window.BSC.my=()=>protect(rawMy);
+    window.BSC.journal=()=>protect(rawJournal);
+    window.BSC.writeJournal=()=>protect(rawWriteJournal);
+    window.BSC.visit=()=>protect(rawVisit);
+    window.community=()=>protect(rawCommunity);
+    window.BSC.community=window.community;
+    window.BSC.rental=name=>{const detail=shopDetails[name];if(!detail)return;const beachName=({songjeong:'송정 해수욕장',songdo:'송도 해수욕장',dadaepo:'다대포 해수욕장'})[localStorage.getItem('bsc-selected-beach')]||'부산';const url='https://map.naver.com/p/search/'+encodeURIComponent(name+' '+beachName+' 부산');openSheet(name+' 대여','<p>'+detail+'</p><p>운영 시간과 실제 대여 가능 장비는 방문 전에 업체에 확인해 주세요.</p><a class="bsc-cta" href="'+url+'" target="_blank" rel="noopener">대여점 문의하기 · 위치 보기</a>')};
+    let enhancing=false;
+    function enhanceUi(){
+      if(enhancing)return;enhancing=true;
+      document.querySelectorAll('.profile-dot').forEach(button=>{if(button.textContent!=='MY')button.textContent='MY'});
+      const navMy=document.querySelector('.nav button[data-target="profile"]');
+      if(navMy&&navMy.dataset.bscMy!=='1'){navMy.dataset.bscMy='1';navMy.innerHTML='<b>MY</b>MY';navMy.onclick=event=>{event.preventDefault();window.BSC.my()}}
+      const recordBack=document.querySelector('#profile .subhead .back'),recordTitle=document.querySelector('#profile .subhead h2')?.textContent||'';
+      if(recordBack&&/기록장/.test(recordTitle))recordBack.onclick=()=>window.BSC.my();
+      const wind=parseFloat(document.getElementById('an-wind')?.textContent||'');
+      ['A','B','C'].forEach((zone,index)=>{const element=document.getElementById('zone-'+zone);if(!element||!Number.isFinite(wind)||element.textContent.includes('m/s'))return;const wave=parseFloat(element.textContent);if(Number.isFinite(wave))element.textContent=wave.toFixed(1)+'m · '+Math.max(.1,wind+(index-1)*.35).toFixed(1)+'m/s'});
+      document.querySelectorAll('#analysis .bsc-card').forEach(card=>{const heading=card.querySelector('h3');if(heading?.textContent==='해상 분석 구역'){const description=card.querySelector('p');if(description)description.textContent='첨부 예시처럼 해안선을 따라 나눈 BSC 분석 구역이며, 육지와 하천은 제외했습니다.'}if(heading?.textContent==='근처 장비 대여점'){heading.textContent='확인된 장비 대여점';const list=card.querySelector('.bsc-list');if(list&&!list.children.length)list.innerHTML='<div class="bsc-rental-empty">현재 온라인에서 확인된 상시 장비 대여점이 없습니다. 가상의 업체는 표시하지 않아요.</div>';list?.querySelectorAll('.bsc-row').forEach(row=>{const name=row.querySelector('b')?.textContent||'',small=row.querySelector('small');if(small&&shopDetails[name])small.textContent=shopDetails[name]})}});
+      enhancing=false;
+    }
+    new MutationObserver(()=>queueMicrotask(enhanceUi)).observe(document.body,{childList:true,subtree:true,characterData:true});
+    enhanceUi();
+  })();
+</script>
+<style>
+  .bsc-ai-request{width:100%;min-height:88px;margin-top:13px;padding:12px 13px;border:1px solid #cfe4ed;border-radius:13px;background:#fafdff;color:#183f55;font:inherit;font-size:13px;line-height:1.5;resize:vertical}.bsc-ai-request:focus{outline:2px solid #8dd8ed;border-color:#2ba8cc}.bsc-ai-profile{display:inline-block;margin-top:10px;padding:6px 9px;border-radius:99px;background:#e8f6fa;color:#07618a;font-size:11px;font-weight:800}.bsc-ai-preferences{display:grid;gap:10px;margin-top:13px;padding:12px;border:1px solid #d8ebf2;border-radius:14px;background:#f8fcfe}.bsc-ai-preferences label{display:grid;grid-template-columns:1fr auto;gap:5px;color:#315b70;font-size:12px;font-weight:800}.bsc-ai-preferences output{color:#087cac}.bsc-ai-preferences input{grid-column:1/-1;width:100%;accent-color:#0c91bd}.bsc-ai-preferences small{color:#718d9b;font-size:10px;line-height:1.4}.bsc-ai-result{margin-top:12px;padding:13px;border-radius:13px;background:#e8f9fc;color:#075787;font-size:13px;line-height:1.55}.bsc-ai-result[hidden]{display:none}.bsc-ai-zone{display:block;margin-bottom:6px;color:#ef644e;font-size:17px}.bsc-ai-error{background:#fff0ea;color:#994c36}
 </style>
 <script>
   (() => {
@@ -135,7 +261,7 @@
       : '/api/gemini';
     async function aiRecommendation() {
       const profile = JSON.parse(localStorage.getItem('bsc-member-profile') || 'null');
-      if (!profile) { window.BSC?.openMember(); return; }
+      if (!profile) { if (window.BSC?.requireLogin) window.BSC.requireLogin(); else window.BSC?.openMember(); return; }
       const button = document.getElementById('bsc-ai-button');
       const result = document.getElementById('bsc-ai-result');
       const request = document.getElementById('bsc-ai-request');
@@ -145,9 +271,10 @@
       button.disabled = true; button.textContent = 'AI가 구역을 분석하고 있어요...'; result.hidden = false; result.classList.remove('bsc-ai-error'); result.textContent = '현재 환경과 회원님의 실력을 함께 분석하고 있어요.';
       const beach = document.querySelector('#analysis h2')?.textContent || 'Busan beach';
       const values = [...document.querySelectorAll('#analysis .bsc-grid b')].map(el => el.textContent.replace(/[^0-9.]/g, ''));
-      const zones = ['A','B','C'].map(id => ({ id, wave: (document.getElementById('zone-' + id)?.textContent || '').replace(/[^0-9.]/g, '') || values[0] || '0' }));
+      const zones = ['A','B','C'].map(id => { const match = (document.getElementById('zone-' + id)?.textContent || '').match(/\d+(?:\.\d+)?/); return { id, wave: match?.[0] || values[0] || '0' }; });
+      const preferences = { wave: Number(document.getElementById('bsc-pref-wave')?.value || 0), wind: Number(document.getElementById('bsc-pref-wind')?.value || 0), depth: Number(document.getElementById('bsc-pref-depth')?.value || 0) };
       try {
-        const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ beach, wave: values[0] || '0', wind: values[1] || '0', temperature: values[2] || '0', level: profile.level || '초급', userRequest, zones }) });
+        const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ beach, wave: values[0] || '0', wind: values[1] || '0', temperature: values[2] || '0', level: profile.level || '초급', userRequest, zones, preferences }) });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Unable to load the AI recommendation.');
         const zone = String(data.zone || '').toUpperCase().replace(/[^ABC]/g, '').slice(0, 1);
@@ -169,7 +296,9 @@
       if (analysis && !document.getElementById('bsc-ai-button')) {
         const target = analysis.querySelector('.dashboard');
         const profile = JSON.parse(localStorage.getItem('bsc-member-profile') || 'null');
-        target?.insertAdjacentHTML('beforeend', '<section class="bsc-card"><h3>AI 맞춤 구역 추천</h3><p>원하는 활동과 조건을 말하면 현재 해양 환경과 프로필 난이도를 바탕으로 적절한 구역을 추천해 드려요.</p><span class="bsc-ai-profile">프로필 난이도 · ' + (profile?.level || '로그인 필요') + '</span><textarea class="bsc-ai-request" id="bsc-ai-request" maxlength="300" placeholder="예: 사람이 비교적 적고 초보자가 연습하기 좋은 구역을 알려줘"></textarea><button class="bsc-cta" id="bsc-ai-button">내게 맞는 구역 추천받기</button><div class="bsc-ai-result" id="bsc-ai-result" aria-live="polite" hidden></div></section>');
+        const level = profile?.level || '로그인 필요';
+        const defaults = /고급|advanced/i.test(level) ? [75,55,70] : /중급|intermediate/i.test(level) ? [50,40,50] : [25,20,30];
+        target?.insertAdjacentHTML('beforeend', '<section class="bsc-card"><h3>AI 맞춤 구역 추천</h3><p>원하는 활동과 조건을 말하면 현재 해양 환경과 프로필 난이도를 바탕으로 적절한 구역을 추천해 드려요.</p><span class="bsc-ai-profile">프로필 난이도 · ' + level + '</span><div class="bsc-ai-preferences"><label>원하는 파도 세기 <output id="bsc-pref-wave-value">' + defaults[0] + '</output><input id="bsc-pref-wave" type="range" min="0" max="100" value="' + defaults[0] + '" oninput="document.getElementById(\'bsc-pref-wave-value\').value=this.value"></label><label>원하는 풍속 <output id="bsc-pref-wind-value">' + defaults[1] + '</output><input id="bsc-pref-wind" type="range" min="0" max="100" value="' + defaults[1] + '" oninput="document.getElementById(\'bsc-pref-wind-value\').value=this.value"></label><label>선호 수심 <output id="bsc-pref-depth-value">' + defaults[2] + '</output><input id="bsc-pref-depth" type="range" min="0" max="100" value="' + defaults[2] + '" oninput="document.getElementById(\'bsc-pref-depth-value\').value=this.value"></label><small>0은 약함·잔잔함·얕음을, 100은 강함·깊음을 뜻하는 선호도입니다. 수심은 실시간 측정값이 아니며 현장 안내를 확인해야 합니다.</small></div><textarea class="bsc-ai-request" id="bsc-ai-request" maxlength="300" placeholder="예: 보드 균형을 연습하기 좋은 안전한 구역을 알려줘"></textarea><button class="bsc-cta" id="bsc-ai-button">내게 맞는 구역 추천받기</button><div class="bsc-ai-result" id="bsc-ai-result" aria-live="polite" hidden></div></section>');
         document.getElementById('bsc-ai-button')?.addEventListener('click', aiRecommendation);
       }
       };
@@ -185,22 +314,30 @@
   .bsc-select{width:calc(100% - 40px);margin:14px 20px;padding:15px;border:1px solid #cfe7f0;border-radius:15px;background:#fff;color:#075787;font:inherit;font-weight:800}.bsc-select option{font-weight:500}.bsc-card{margin:0 20px 16px;padding:18px;border:1px solid #d5ebf3;border-radius:20px;background:#fff;box-shadow:0 6px 18px rgba(4,88,128,.06)}.bsc-card h3{margin:0 0 7px;color:#064674}.bsc-card p{margin:0;color:#638397;font-size:13px;line-height:1.5}.bsc-live{background:linear-gradient(135deg,#075787,#109dc8);color:#fff}.bsc-live h3,.bsc-live p{color:#fff}.bsc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}.bsc-grid div{padding:10px 7px;border-radius:12px;background:rgba(255,255,255,.16);text-align:center}.bsc-grid b{display:block;font-size:16px}.bsc-grid small{font-size:10px;opacity:.85}.bsc-zone{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.bsc-zone button{padding:12px 6px;border:1px solid #cee7ef;border-radius:13px;background:#f8fdff;color:#075787;font-weight:800}.bsc-zone button.on{background:#dff8f4;border-color:#24b8a9}.bsc-warning{margin-top:12px;padding:12px;border-radius:13px;background:#fff4e9;color:#9c5338;font-size:12px;line-height:1.5}.bsc-cta{width:100%;margin-top:13px;padding:13px;border-radius:13px;background:#ff705b;color:#fff;font-weight:800}.bsc-map{height:285px;border-radius:16px;overflow:hidden;margin-top:10px}.bsc-list{display:grid;gap:9px;margin-top:11px}.bsc-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;border-top:1px solid #e8f2f5}.bsc-row:first-child{border-top:0}.bsc-row small{display:block;color:#6a8798;margin-top:3px}.bsc-row button,.bsc-pill{padding:8px 10px;border-radius:10px;background:#e0f7fb;color:#07618a;font-size:12px;font-weight:800}.bsc-fab{position:fixed;right:max(20px,calc((100vw - 440px)/2 + 16px));bottom:91px;z-index:30;width:54px;height:54px;border-radius:50%;background:#ff705b;color:white;font-size:30px;box-shadow:0 10px 20px rgba(189,71,48,.35)}.bsc-journal-form{display:grid;gap:10px;margin-top:14px}.bsc-journal-form input,.bsc-journal-form select,.bsc-journal-form textarea{width:100%;padding:12px;border:1px solid #cfe4ed;border-radius:12px;font:inherit}.bsc-journal-form textarea{min-height:84px;resize:vertical}.bsc-level{cursor:pointer}.bsc-progress{height:9px;margin:9px 0;border-radius:99px;background:#e8f1f5;overflow:hidden}.bsc-progress i{display:block;height:100%;background:#23b8b0;border-radius:inherit}.bsc-guest{position:fixed;inset:0;z-index:120;display:grid;place-items:center;padding:22px;background:rgba(1,47,77,.58);backdrop-filter:blur(7px)}.bsc-guest[hidden]{display:none}.bsc-guest section{width:min(100%,390px);padding:26px 23px;border-radius:27px;background:#fff}.bsc-guest h2{margin:0 0 8px;color:#064674}.bsc-guest p{color:#607e90;font-size:13px;line-height:1.55}.bsc-guest button{width:100%;margin-top:9px;padding:14px;border-radius:14px;font-weight:800}.bsc-member{background:#075787;color:#fff}.bsc-continue{background:#e8f6fa;color:#075787}.bsc-photo{max-width:100%;max-height:160px;border-radius:12px;object-fit:cover;margin-top:9px}.bsc-lock{padding:15px;border-radius:14px;background:#fff4e9;color:#985035;font-size:13px;line-height:1.5}.modal{z-index:2000!important}
 </style>
 <style>a.bsc-cta{display:block;text-align:center;text-decoration:none}.bsc-logo{display:block;width:98px;height:auto}.bsc-logout{float:right;padding:7px 9px;border-radius:9px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.55);color:#fff;font-size:11px;font-weight:800}.bsc-rank{color:#fff}.bsc-rank h3,.bsc-rank p{color:#fff}.bsc-rank-bronze{background:linear-gradient(135deg,#8a552f,#c9824b)}.bsc-rank-silver{background:linear-gradient(135deg,#687b8e,#b7c6d1)}.bsc-rank-gold{background:linear-gradient(135deg,#a76905,#eabf4c)}.bsc-rank-master{background:linear-gradient(135deg,#423681,#9e76d0)}.bsc-medal{margin-right:5px;font-size:21px}.bsc-welcome{min-height:155px;background:linear-gradient(90deg,rgba(0,48,89,.78),rgba(0,93,144,.28)),url('songjeong.jpg') center/cover;color:#fff}.bsc-welcome h3{margin-top:14px;color:#fff;font-size:25px}.bsc-welcome p{max-width:210px;color:#fff}</style>
-<div class="bsc-guest" id="bsc-access" hidden><section><div style="font-size:34px">🏄</div><h2>BSC에 오신 것을 환영해요</h2><p>비회원은 해변 정보와 실시간 환경을 둘러볼 수 있어요. AI 추천, 커뮤니티, 나의 기록장은 프로필을 만든 뒤 사용할 수 있습니다.</p><button class="bsc-member" onclick="BSC.openMember()">프로필 만들기 / 로그인</button><button class="bsc-continue" onclick="BSC.guest()">비회원으로 둘러보기</button></section></div>
+<div class="bsc-guest" id="bsc-access" hidden><section><div style="font-size:34px">🏄</div><h2>BSC에 오신 것을 환영해요</h2><p>비회원은 해변 정보와 실시간 환경만 둘러볼 수 있어요.</p><div class="bsc-guest-limits"><b>비회원 이용 제한</b><span>✦ AI 맞춤 구역 추천</span><span>👥 커뮤니티</span><span>📝 MY 파도 기록장</span></div><button class="bsc-member" onclick="BSC.openMember()">프로필 만들기 / 로그인</button><button class="bsc-continue" onclick="BSC.guest()">비회원으로 둘러보기</button></section></div>
 <script>
 (() => {
-  const BEACHES={songjeong:{name:'송정 해수욕장',lat:35.1780,lng:129.2010,sunset:'청사포 다릿돌전망대',zones:[[35.1748,129.2018],[35.1753,129.2042],[35.1757,129.2066]],rentals:['송정 서프하우스','송정 웨이브 렌탈'],warning:'너울성 파도 주의'},haeundae:{name:'해운대 해수욕장',lat:35.1587,lng:129.1604,sunset:'해운대 달맞이길',zones:[[35.1546,129.1568],[35.1548,129.1593],[35.1550,129.1618]],rentals:['해운대 서프 렌탈','미포 오션기어'],warning:'이안류 발생 가능'},gwangalli:{name:'광안리 해수욕장',lat:35.1530,lng:129.1185,sunset:'민락수변공원·광안대교',zones:[[35.1499,129.1152],[35.1501,129.1178],[35.1503,129.1204]],rentals:['광안리 SUP & 서프','민락 보드 렌탈'],warning:'야간 조류 변화 주의'},songdo:{name:'송도 해수욕장',lat:35.0765,lng:129.0169,sunset:'송도 구름산책로',zones:[[35.0730,129.0150],[35.0731,129.0172],[35.0732,129.0194]],rentals:['송도 오션 스포츠','암남 서프 렌탈'],warning:'해안 암반 구간 주의'},dadaepo:{name:'다대포 해수욕장',lat:35.0467,lng:128.9674,sunset:'다대포 낙조분수·몰운대',zones:[[35.0426,128.9620],[35.0429,128.9650],[35.0432,128.9680]],rentals:['다대포 서프클럽','몰운대 렌탈'],warning:'조류·갯골 주의'},ilgwang:{name:'일광 해수욕장',lat:35.2665,lng:129.2338,sunset:'일광 해안산책로',zones:[[35.2632,129.2344],[35.2635,129.2368],[35.2638,129.2392]],rentals:['일광 서프스쿨','기장 오션 렌탈'],warning:'파도 주의'},imrang:{name:'임랑 해수욕장',lat:35.3181,lng:129.2582,sunset:'임랑 해안도로',zones:[[35.3150,129.2590],[35.3153,129.2614],[35.3156,129.2638]],rentals:['임랑 서프스테이션','기장 웨이브샵'],warning:'해파리 출몰 주의'}};
+  const BEACHES={
+    songjeong:{name:'송정 해수욕장',lat:35.1780,lng:129.2010,sunset:'청사포 다릿돌전망대',zones:[[[35.1747,129.2001],[35.1758,129.2010],[35.1752,129.2032],[35.1741,129.2023]],[[35.1758,129.2010],[35.1770,129.2016],[35.1764,129.2038],[35.1752,129.2032]],[[35.1770,129.2016],[35.1782,129.2019],[35.1777,129.2042],[35.1764,129.2038]]],rentals:['서프홀릭 부산송정본점'],warning:'너울성 파도 주의'},
+    haeundae:{name:'해운대 해수욕장',lat:35.1587,lng:129.1604,sunset:'해운대 달맞이길',zones:[[[35.1564,129.1537],[35.1562,129.1573],[35.1538,129.1571],[35.1540,129.1536]],[[35.1562,129.1573],[35.1561,129.1610],[35.1537,129.1608],[35.1538,129.1571]],[[35.1561,129.1610],[35.1560,129.1646],[35.1536,129.1644],[35.1537,129.1608]]],rentals:[],warning:'이안류 발생 가능'},
+    gwangalli:{name:'광안리 해수욕장',lat:35.1530,lng:129.1185,sunset:'민락수변공원·광안대교',zones:[[[35.1512,129.1138],[35.1510,129.1170],[35.1488,129.1168],[35.1490,129.1136]],[[35.1510,129.1170],[35.1509,129.1202],[35.1487,129.1200],[35.1488,129.1168]],[[35.1509,129.1202],[35.1510,129.1232],[35.1488,129.1231],[35.1487,129.1200]]],rentals:[],warning:'야간 조류 변화 주의'},
+    songdo:{name:'송도 해수욕장',lat:35.0765,lng:129.0169,sunset:'송도 구름산책로',zones:[[[35.0747,129.0141],[35.0745,129.0165],[35.0724,129.0163],[35.0726,129.0139]],[[35.0745,129.0165],[35.0744,129.0188],[35.0723,129.0187],[35.0724,129.0163]],[[35.0744,129.0188],[35.0745,129.0210],[35.0724,129.0210],[35.0723,129.0187]]],rentals:['송도해양레포츠센터'],warning:'해안 암반 구간 주의'},
+    dadaepo:{name:'다대포 해수욕장',lat:35.0467,lng:128.9674,sunset:'다대포 낙조분수·몰운대',zones:[[[35.0447,128.9610],[35.0442,128.9648],[35.0418,128.9642],[35.0423,128.9605]],[[35.0442,128.9648],[35.0440,128.9687],[35.0416,128.9684],[35.0418,128.9642]],[[35.0440,128.9687],[35.0442,128.9724],[35.0418,128.9726],[35.0416,128.9684]]],rentals:['서프홀릭 다대포','다대포해양레포츠센터'],warning:'조류·갯골 주의'},
+    ilgwang:{name:'일광 해수욕장',lat:35.2665,lng:129.2338,sunset:'일광 해안산책로',zones:[[[35.2632,129.2350],[35.2650,129.2355],[35.2647,129.2381],[35.2629,129.2375]],[[35.2650,129.2355],[35.2669,129.2358],[35.2666,129.2384],[35.2647,129.2381]],[[35.2669,129.2358],[35.2687,129.2358],[35.2685,129.2385],[35.2666,129.2384]]],rentals:[],warning:'파도 주의'},
+    imrang:{name:'임랑 해수욕장',lat:35.3181,lng:129.2582,sunset:'임랑 해안도로',zones:[[[35.3150,129.2593],[35.3168,129.2597],[35.3165,129.2623],[35.3147,129.2619]],[[35.3168,129.2597],[35.3187,129.2598],[35.3185,129.2625],[35.3165,129.2623]],[[35.3187,129.2598],[35.3205,129.2595],[35.3204,129.2623],[35.3185,129.2625]]],rentals:[],warning:'해파리 출몰 주의'}
+  };
   let beach=localStorage.getItem('bsc-selected-beach')||'songjeong', map, layers=[];
   const profile=()=>JSON.parse(localStorage.getItem('bsc-member-profile')||'null'); const journals=()=>JSON.parse(localStorage.getItem('bsc-journals')||'[]'); const visits=()=>JSON.parse(localStorage.getItem('bsc-visits')||'[]');
   const esc=s=>String(s||'').replace(/[&<>'\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[c]));
   function memberOnly(action){if(profile()) return action(); document.getElementById('bsc-access').hidden=false;}
   function access(){if(!localStorage.getItem('bsc-access-seen')&&!profile())document.getElementById('bsc-access').hidden=false;}
-  function select(id){beach=id;localStorage.setItem('bsc-selected-beach',id); renderAnalysis(); if(window.showScreen)window.showScreen('analysis');}
+  function select(id){if(!BEACHES[id])return;beach=id;window.bscSelectedBeach=id;localStorage.setItem('bsc-selected-beach',id); renderAnalysis(); if(window.showScreen)window.showScreen('analysis');}
   async function marine(){const b=BEACHES[beach]; const url=`https://marine-api.open-meteo.com/v1/marine?latitude=${b.lat}&longitude=${b.lng}&current=wave_height,sea_surface_temperature&hourly=wave_height&timezone=Asia%2FSeoul`; const weather=`https://api.open-meteo.com/v1/forecast?latitude=${b.lat}&longitude=${b.lng}&current=temperature_2m,wind_speed_10m,uv_index&hourly=temperature_2m&timezone=Asia%2FSeoul`; const [m,w]=await Promise.all([fetch(url).then(r=>r.json()),fetch(weather).then(r=>r.json())]);return {wave:m.current.wave_height||0,sea:m.current.sea_surface_temperature||0,wind:w.current.wind_speed_10m||0,temp:w.current.temperature_2m||0,uv:w.current.uv_index||0,time:w.current.time,temps:w.hourly};}
   function bestTime(data){const now=new Date().getHours(), h=data.temps.time.map(t=>new Date(t).getHours());const candidates=h.map((hour,i)=>({hour,temp:data.temps.temperature_2m[i],score:(hour>=8&&hour<=18?3:0)-(Math.abs(hour-14)*.12)})).filter(x=>x.hour>=now&&x.hour<=18).sort((a,b)=>b.score-a.score);return candidates[0]||{hour:14,temp:data.temp};}
   function renderHome(){const home=document.getElementById('home');if(!home)return; home.innerHTML=`<header class="top"><img class="bsc-logo" src="bsc-logo.png" alt="BSC Busan Surf Cast"><button class="profile-dot" onclick="BSC.my()" aria-label="마이페이지">◉</button></header><select class="bsc-select" onchange="BSC.select(this.value)"><option value="">부산 해수욕장 7곳을 선택하세요</option>${Object.entries(BEACHES).map(([id,b])=>`<option value="${id}" ${id===beach?'selected':''}>${b.name}</option>`).join('')}</select><section class="bsc-card bsc-welcome"><small>BUSAN SURF CAST</small><h3>환영합니다!</h3><p>부산 바다에서 나에게 맞는 파도를 찾아보세요.</p></section><section class="bsc-card"><h3>노을 정보</h3><p>오늘 일몰 시간과 각 해변의 실제 노을 명소를 확인하세요.</p><div class="bsc-row"><div><b id="bsc-sunset">일몰 계산 중</b><small>${BEACHES[beach].sunset}</small></div><span class="bsc-pill">노을 명소</span></div></section><section class="bsc-card"><h3>빠른 메뉴</h3><div class="bsc-row"><div><b>내 기록장</b><small>일기처럼 남긴 모든 파도 기록</small></div><button onclick="BSC.journal()">기록 보기</button></div><div class="bsc-row"><div><b>커뮤니티</b><small>멤버 전용 파도 이야기</small></div><button onclick="BSC.community()">열기</button></div></section>`; updateHome();}
   async function updateHome(){try{const d=await marine(),b=BEACHES[beach],sun=new Date().toLocaleDateString('sv-SE');const s=await fetch(`https://api.sunrise-sunset.org/json?lat=${b.lat}&lng=${b.lng}&date=${sun}&formatted=0`).then(r=>r.json());document.getElementById('bsc-sunset').textContent=`오늘 일몰 ${new Intl.DateTimeFormat('ko-KR',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Seoul'}).format(new Date(s.results.sunset))}`;}catch(e){document.getElementById('bsc-sunset').textContent='일몰 정보를 불러오지 못했습니다.';}}
   async function renderAnalysis(){const a=document.getElementById('analysis');if(!a)return; const b=BEACHES[beach];a.innerHTML=`<header class="subhead"><button class="back" onclick="showScreen('home')">‹</button><h2>${b.name} 리포트</h2></header><div class="dashboard"><section class="bsc-card bsc-live"><small>실시간 해양·기상 데이터</small><h3 id="an-title">불러오는 중…</h3><div class="bsc-grid"><div><b id="an-wave">-</b><small>파고</small></div><div><b id="an-wind">-</b><small>풍속</small></div><div><b id="an-temp">-</b><small>기온</small></div></div></section><section class="bsc-card"><h3>서핑 최적 시간</h3><p id="an-time">시간대별 기온과 현재 해양 상태를 계산 중…</p></section><section class="bsc-card"><h3>해상 분석 구역</h3><p>실제 해변 앞바다의 서핑 가능 해상 방향에만 표시합니다.</p><div id="bsc-map" class="bsc-map"></div><div class="bsc-zone">${['A','B','C'].map((x,i)=>`<button class="${i===0?'on':''}" onclick="BSC.zone('${x}',this)">${x}구역<br><small id="zone-${x}">파고 계산 중</small></button>`).join('')}</div><div class="bsc-warning" id="an-warning">주의 정보를 계산 중…</div></section><section class="bsc-card"><h3>근처 장비 대여점</h3><div class="bsc-list">${b.rentals.map((r,i)=>`<div class="bsc-row"><div><b>${r}</b><small>${b.name} 인근 · ${i? '도보 7분':'도보 4분'}</small></div><button onclick="BSC.rental('${r}')">대여 보기</button></div>`).join('')}</div></section></div>`;try{const d=await marine(),best=bestTime(d),warn=d.uv>=6?'자외선 경고: 자외선 차단과 수분 보충이 필요해요.':d.wave>=1.4?'파도 주의: 높은 파도와 강한 너울을 확인하세요.':b.warning;document.getElementById('an-title').textContent=`활동 지수 ${Math.max(1,Math.min(100,Math.round(80-d.wave*15-d.wind*2)))}점 · ${d.time.replace('T',' ')}`;document.getElementById('an-wave').textContent=d.wave.toFixed(1)+'m';document.getElementById('an-wind').textContent=d.wind.toFixed(1)+'m/s';document.getElementById('an-temp').textContent=d.temp.toFixed(0)+'°C';document.getElementById('an-time').textContent=`${String(best.hour).padStart(2,'0')}:00 전후 · 예상 기온 ${best.temp.toFixed(0)}°C (시간대별 기온 기준)`;['A','B','C'].forEach((z,i)=>document.getElementById('zone-'+z).textContent=`${Math.max(.1,d.wave+(i-1)*.15).toFixed(1)}m`);document.getElementById('an-warning').textContent=warn;drawMap(d);}catch(e){document.getElementById('an-title').textContent='실시간 데이터 연결 실패';}}
-  function drawMap(d){if(!window.L)return; const b=BEACHES[beach],el=document.getElementById('bsc-map');if(!el)return;if(map){map.remove();map=null;}map=L.map(el,{zoomControl:false,attributionControl:false}).setView([b.lat,b.lng],15);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);b.zones.forEach((p,i)=>{const lat=p[0],lng=p[1],q=[[lat,lng],[lat+.00045,lng+.0010],[lat-.0001,lng+.00155],[lat-.00055,lng+.00055]];L.polygon(q,{color:i?'#0878ac':'#ff705b',weight:2,fillOpacity:.2}).addTo(map).bindPopup(`<b>${'ABC'[i]}구역</b><br>파고 ${Math.max(.1,d.wave+(i-1)*.15).toFixed(1)}m`)});L.circleMarker([b.lat,b.lng],{radius:6,color:'#075787',fillColor:'#13b8d2',fillOpacity:1}).addTo(map).bindPopup(b.name);setTimeout(()=>map.invalidateSize(),100);}
+  function drawMap(d){if(!window.L)return; const b=BEACHES[beach],el=document.getElementById('bsc-map');if(!el)return;if(map){map.remove();map=null;}map=L.map(el,{zoomControl:false,attributionControl:false}).setView([b.lat,b.lng],15);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);const colors=['#f6a623','#23b8b0','#4c8dde'];b.zones.forEach((polygon,i)=>{const wave=Math.max(.1,d.wave+(i-1)*.15),wind=Math.max(.1,d.wind+(i-1)*.35);L.polygon(polygon,{color:colors[i],weight:3,fillColor:colors[i],fillOpacity:.32}).addTo(map).bindPopup(`<b>${'ABC'[i]}구역</b><br>파고 ${wave.toFixed(1)}m · 풍속 ${wind.toFixed(1)}m/s`)});setTimeout(()=>map.invalidateSize(),100);}
   function journal(){memberOnly(()=>{const r=journals();const p=document.getElementById('profile');p.innerHTML=`<header class="subhead"><button class="back" onclick="showScreen('home')">‹</button><h2>나의 파도 기록장</h2></header><section class="bsc-card"><h3>파도 일지 ${r.length}개</h3><p>기록을 많이 남길수록 다음 등급에 가까워져요.</p></section>${r.length?r.map(x=>`<section class="bsc-card"><b>${esc(x.date)} · ${esc(x.beach)} ${esc(x.zone)}</b><p>${esc(x.time)} · ${esc(x.weather)} · 만족도 ${'★'.repeat(x.rating)}</p><p>${esc(x.text)}</p>${x.photo?`<img class="bsc-photo" src="${x.photo}" alt="파도 기록 사진">`:''}</section>`).join(''):'<section class="bsc-card"><p>아직 기록이 없어요. 우측 하단 + 버튼으로 첫 기록을 남겨보세요.</p></section>'}`;showScreen('profile');addFab();});}
   function addFab(){document.querySelector('.bsc-fab')?.remove();const f=document.createElement('button');f.className='bsc-fab';f.textContent='+';f.onclick=writeJournal;document.body.append(f)}
   function writeJournal(){memberOnly(()=>{const bopts=Object.entries(BEACHES).map(([id,b])=>`<option value="${id===beach?'selected':''}">${b.name}</option>`).join('');openSheet('새 파도 기록',`<form class="bsc-journal-form" id="journal-form"><input name="date" type="date" value="${new Date().toLocaleDateString('sv-SE')}" required><select name="weather"><option>맑음</option><option>흐림</option><option>비</option><option>바람</option></select><input name="time" type="time" value="14:00" required><select name="beach">${bopts}</select><select name="zone"><option>A구역</option><option>B구역</option><option>C구역</option></select><select name="rating"><option value="5">만족도 5</option><option value="4">만족도 4</option><option value="3">만족도 3</option><option value="2">만족도 2</option><option value="1">만족도 1</option></select><textarea name="text" maxlength="240" placeholder="오늘의 파도는 어땠나요? 1~3줄로 적어보세요." required></textarea><input name="photo" type="file" accept="image/*"><button class="bsc-cta" type="submit">기록 저장</button></form>`);document.getElementById('journal-form').onsubmit=saveJournal;});}
@@ -5718,3 +5855,4 @@ ${
     };
   })();
 </script>
+<script src="bsc-final.js"></script>

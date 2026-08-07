@@ -19,7 +19,7 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST 요청만 지원합니다." });
   if (!process.env.GEMINI_API_KEY) return res.status(503).json({ error: "AI 추천 설정이 아직 완료되지 않았습니다." });
 
-  const { beach, wave, wind, temperature, level, userRequest, zones } = req.body || {};
+  const { beach, wave, wind, temperature, level, userRequest, zones, preferences } = req.body || {};
   if (![beach, wave, wind, temperature, level, userRequest].every(value => typeof value === "string" || typeof value === "number") || !Array.isArray(zones)) {
     return res.status(400).json({ error: "추천에 필요한 해양 정보가 부족합니다." });
   }
@@ -29,8 +29,9 @@ export default async function handler(req, res) {
     wave: String(zone?.wave || "0").replace(/[^0-9.]/g, "").slice(0, 10),
   })).filter(zone => zone.id);
   if (!safeZones.length) return res.status(400).json({ error: "추천할 구역 정보가 없습니다." });
+  const preference = Object.fromEntries(["wave", "wind", "depth"].map(key => [key, Math.max(0, Math.min(100, Number(preferences?.[key]) || 0))]));
 
-  const prompt = `당신은 부산 해변의 안전 중심 서핑 코치입니다. 반드시 제공된 구역 중 하나만 선택하세요. 사용자의 프로필 실력과 요청, 현재 환경을 함께 고려하되 안전을 최우선으로 판단하세요. 초급자는 낮은 파고와 안정적인 구역을 우선하고, 중급/고급도 위험한 환경에서는 보수적으로 추천하세요. 사용자 요청에 없는 사실(혼잡도, 해저 지형, 수질 등)을 지어내지 마세요. 한국어로 답하세요.\n\n해변: ${String(beach).slice(0, 50)}\n전체 파고: ${String(wave).slice(0, 20)}m\n풍속: ${String(wind).slice(0, 20)}m/s\n기온: ${String(temperature).slice(0, 20)}°C\n프로필 실력: ${String(level).slice(0, 30)}\n사용자 요청: ${String(userRequest).slice(0, 300)}\n선택 가능한 구역: ${safeZones.map(zone => `${zone.id}구역(파고 ${zone.wave}m)`).join(", ")}\n\n다음 JSON 형식만 출력하세요: {"zone":"A","recommendation":"선택 이유와 안전 안내를 포함한 2~3문장"}`;
+  const prompt = `당신은 부산 해변의 안전 중심 서핑 코치입니다. 반드시 제공된 구역 중 하나만 선택하세요. 사용자의 프로필 실력과 요청, 현재 환경, 0~100 선호도를 함께 고려하되 안전을 최우선으로 판단하세요. 선호도 0은 약한 파도·약한 바람·얕은 수심, 100은 강한 파도·강한 바람·깊은 수심을 원한다는 뜻입니다. 수심 선호도는 실제 수심 측정값이 아니므로 특정 구역의 실제 수심을 단정하지 마세요. 초급자는 사용자가 높은 값을 골라도 안전 기준상 낮은 파고와 안정적인 구역을 우선하고, 중급/고급도 위험한 환경에서는 보수적으로 추천하세요. 사용자 요청에 없는 사실(혼잡도, 해저 지형, 수질 등)을 지어내지 마세요. 한국어로 답하세요.\n\n해변: ${String(beach).slice(0, 50)}\n전체 파고: ${String(wave).slice(0, 20)}m\n실제 풍속: ${String(wind).slice(0, 20)}m/s\n기온: ${String(temperature).slice(0, 20)}°C\n프로필 실력: ${String(level).slice(0, 30)}\n원하는 파도 세기: ${preference.wave}/100\n원하는 풍속: ${preference.wind}/100\n선호 수심: ${preference.depth}/100 (실측 아님)\n사용자 요청: ${String(userRequest).slice(0, 300)}\n선택 가능한 구역: ${safeZones.map(zone => `${zone.id}구역(파고 ${zone.wave}m)`).join(", ")}\n\n다음 JSON 형식만 출력하세요: {"zone":"A","recommendation":"선택 이유와 안전 안내를 포함한 2~3문장"}`;
 
   try {
     const response = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent", {
