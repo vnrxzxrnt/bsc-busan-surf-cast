@@ -76,8 +76,8 @@
     }
   }
   loadSeaObservation();
-  function openSheet(title,content){sheet.innerHTML='<button class="sheet-back" type="button" onclick="closeSheet()" aria-label="뒤로가기">‹</button><h2>'+title+'</h2>'+content+'<button class="cta" onclick="closeSheet()">확인</button>';modal.classList.add('show')}
-  function closeSheet(){modal.classList.remove('show')}
+  function openSheet(title,content){window.bscPreviousScreen=document.querySelector('.screen.active')?.id||'home';sheet.innerHTML='<button class="sheet-back" type="button" onclick="closeSheet()" aria-label="뒤로가기">‹</button><h2>'+title+'</h2>'+content+'<button class="cta" onclick="closeSheet()">확인</button>';modal.classList.add('show')}
+  function closeSheet(){modal.classList.remove('show');showScreen(window.bscPreviousScreen||'home')}
   function openHelp(){openSheet('파도타임 사용 방법','<p>1. 해변을 선택하세요.<br>2. 실시간 파도와 조석 정보를 확인하세요.<br>3. AI 추천 시간·구역에서 안전하게 활동하세요.</p>')}
   function community(){openSheet('송정 서핑 커뮤니티','<p>오늘 함께 파도를 탈 친구를 찾아보세요.</p><button class="choice">🏄 초보 서핑 모임 <strong>12명</strong></button><button class="choice">📷 오늘의 송정 파도 후기 <strong>24개</strong></button>')}
   function rental(){openSheet('가까운 장비 대여','<p>현재 선택한 송정 해수욕장 기준이에요.</p><button class="choice">송정 서프하우스 <strong>도보 3분</strong></button><button class="choice">웨이브 렌탈샵 <strong>도보 6분</strong></button>')}
@@ -5653,11 +5653,11 @@ ${
       }, 0);
     };
     window.BSC.visit = () => {
-      openSheet('해수욕장 방문 등록', `<form class="bsc-journal-form" id="beach-visit-form"><select name="beach" required>${beaches.map(name => `<option>${name}</option>`).join('')}</select><button class="bsc-cta" type="submit">방문 등록하기</button></form>`);
+      openSheet('해수욕장 방문 등록', `<form class="bsc-journal-form" id="beach-visit-form"><input name="date" type="date" value="${new Date().toLocaleDateString('sv-SE')}" required><select name="beach" required>${beaches.map(name => `<option>${name}</option>`).join('')}</select><button class="bsc-cta" type="submit">방문 등록하기</button></form>`);
       document.getElementById('beach-visit-form').onsubmit = event => {
         event.preventDefault();
         const visits = JSON.parse(localStorage.getItem('bsc-visits') || '[]');
-        visits.push({beach:event.currentTarget.elements.beach.value,date:new Date().toISOString()});
+        visits.push({beach:event.currentTarget.elements.beach.value,date:event.currentTarget.elements.date.value});
         localStorage.setItem('bsc-visits', JSON.stringify(visits));
         closeSheet();
         window.BSC.my();
