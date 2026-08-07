@@ -2761,3 +2761,804 @@
     openGroup;
 })();
 </script>
+<!-- BSC Community Single Group V4 -->
+<style>
+  .bsc4-badge{
+    display:inline-flex;
+    padding:5px 9px;
+    border-radius:999px;
+    background:#063b5d;
+    color:#fff;
+    font-size:11px;
+    font-weight:800;
+  }
+
+  .bsc4-chat{
+    margin-top:12px;
+    border:1px solid #d9e8ef;
+    border-radius:15px;
+    overflow:hidden;
+    background:#fff;
+  }
+
+  .bsc4-messages{
+    max-height:300px;
+    overflow-y:auto;
+    padding:12px;
+    display:grid;
+    gap:8px;
+    background:#f8fdff;
+  }
+
+  .bsc4-message{
+    padding:9px 11px;
+    border:1px solid #e0edf2;
+    border-radius:12px;
+    background:#fff;
+  }
+
+  .bsc4-message strong{
+    display:block;
+    color:#063b5d;
+    font-size:12px;
+  }
+
+  .bsc4-message p{
+    margin:4px 0 0;
+    font-size:13px;
+    white-space:pre-wrap;
+    overflow-wrap:anywhere;
+  }
+
+  .bsc4-chat-form{
+    display:flex;
+    gap:7px;
+    padding:10px;
+    border-top:1px solid #d9e8ef;
+  }
+
+  .bsc4-chat-form input{
+    flex:1;
+    min-width:0;
+    padding:11px;
+    border:1px solid #cfe4ed;
+    border-radius:11px;
+    font:inherit;
+  }
+
+  .bsc4-chat-form button{
+    padding:0 15px;
+    border-radius:11px;
+    background:#063b5d;
+    color:#fff;
+    font-weight:800;
+  }
+
+  .bsc4-leave{
+    width:100%;
+    margin-top:12px;
+    padding:13px;
+    border-radius:12px;
+    background:#fff0ed;
+    color:#b94f3d;
+    border:1px solid #ffd0c7;
+    font-weight:800;
+  }
+
+  .bsc4-back{
+    width:100%;
+    padding:11px;
+    margin-bottom:10px;
+    border-radius:12px;
+    background:#e5f5fb;
+    color:#063b5d;
+    font-weight:800;
+  }
+
+  .bsc4-locked{
+    margin:10px 0;
+    padding:12px;
+    border-radius:12px;
+    background:#fff5e8;
+    color:#975d14;
+    font-size:12px;
+    font-weight:700;
+  }
+</style>
+
+<script>
+(() => {
+  if (!window.supabase) return;
+
+  const db4 = window.supabase.createClient(
+    'https://qoxnqmztdhlbwzwgntkc.supabase.co',
+    'sb_publishable_iuh253NYT7p1D7QMToox1w_ab5Q1CS3'
+  );
+
+  const NICK_KEY = 'bsc-active-nickname';
+
+  let posts4 = [];
+  let members4 = [];
+  let chat4 = null;
+
+  function esc4(v){
+    return String(v ?? '')
+      .replaceAll('&','&amp;')
+      .replaceAll('<','&lt;')
+      .replaceAll('>','&gt;')
+      .replaceAll('"','&quot;')
+      .replaceAll("'",'&#039;');
+  }
+
+  function getNick4(){
+    let nick = localStorage.getItem(NICK_KEY);
+
+    if (!nick) {
+      nick =
+        localStorage.getItem('bsc-v3-nickname') ||
+        localStorage.getItem('bsc-my-nickname') ||
+        '';
+    }
+
+    if (nick) {
+      localStorage.setItem(NICK_KEY, nick);
+      localStorage.setItem('bsc-v3-nickname', nick);
+      localStorage.setItem('bsc-my-nickname', nick);
+    }
+
+    return nick;
+  }
+
+  function saveNick4(nick){
+    nick = String(nick || '').trim();
+
+    if (!nick) return '';
+
+    localStorage.setItem(NICK_KEY, nick);
+    localStorage.setItem('bsc-v3-nickname', nick);
+    localStorage.setItem('bsc-my-nickname', nick);
+
+    return nick;
+  }
+
+  async function refresh4(){
+    const [p,m] = await Promise.all([
+      db4
+        .from('community_posts')
+        .select(
+          'id,nickname,title,content,beach,category,created_at'
+        )
+        .order('created_at',{ascending:false}),
+
+      db4
+        .from('community_members')
+        .select('id,post_id,nickname,joined_at')
+        .order('joined_at',{ascending:false})
+    ]);
+
+    if (p.error) throw p.error;
+    if (m.error) throw m.error;
+
+    posts4 = p.data || [];
+    members4 = m.data || [];
+  }
+
+  function activeMembership4(){
+    const nick = getNick4().toLowerCase();
+
+    if (!nick) return null;
+
+    return members4.find(
+      m =>
+        String(m.nickname || '')
+          .trim()
+          .toLowerCase() === nick
+    ) || null;
+  }
+
+  async function community4(){
+    try {
+      await refresh4();
+    } catch(e) {
+      console.error(e);
+      alert('커뮤니티를 불러오지 못했습니다.');
+      return;
+    }
+
+    const active = activeMembership4();
+
+    /*
+      이미 가입한 모임이 있으면
+      커뮤니티 버튼 → 곧바로 그 모임으로 이동
+    */
+    if (active) {
+      openGroup4(active.post_id);
+      return;
+    }
+
+    showCommunityList4();
+  }
+
+  function showCommunityList4(){
+    openSheet(
+      'BSC 커뮤니티',
+      `
+        <p>
+          하나의 모임에만 가입할 수 있습니다.
+          다른 모임에 참여하려면 현재 모임에서 먼저 탈퇴해야 합니다.
+        </p>
+
+        <div
+          id="bsc4-feed"
+          class="bsc-community-feed"
+        ></div>
+      `
+    );
+
+    const feed =
+      document.getElementById('bsc4-feed');
+
+    if (!posts4.length) {
+      feed.innerHTML =
+        '<div class="bsc-community-status">아직 모임이 없습니다.</div>';
+      return;
+    }
+
+    feed.innerHTML =
+      posts4.map(post => `
+        <article
+          class="bsc-community-post"
+          data-bsc4="${post.id}"
+        >
+          <div class="bsc-community-meta">
+            <strong>${esc4(post.nickname)}</strong>
+
+            <span class="bsc-community-tag">
+              ${esc4(post.category || '모임')}
+            </span>
+
+            ${
+              post.beach
+                ? `<span>🏖 ${esc4(post.beach)}</span>`
+                : ''
+            }
+          </div>
+
+          <h3>${esc4(post.title)}</h3>
+          <p>${esc4(post.content)}</p>
+
+          ${
+            post.category === '모임'
+              ? `
+                <div
+                  style="
+                    margin-top:10px;
+                    color:#0877ad;
+                    font-size:12px;
+                    font-weight:800
+                  "
+                >
+                  모임 보기 →
+                </div>
+              `
+              : ''
+          }
+        </article>
+      `).join('');
+
+    feed
+      .querySelectorAll('[data-bsc4]')
+      .forEach(card => {
+        card.addEventListener(
+          'click',
+          () =>
+            openGroup4(
+              Number(card.dataset.bsc4)
+            )
+        );
+      });
+  }
+
+  async function openGroup4(postId){
+    try {
+      await refresh4();
+    } catch(e) {
+      console.error(e);
+      return;
+    }
+
+    const post =
+      posts4.find(
+        p => Number(p.id) === Number(postId)
+      );
+
+    if (!post) return;
+
+    const groupMembers =
+      members4.filter(
+        m =>
+          Number(m.post_id) ===
+          Number(postId)
+      );
+
+    const active =
+      activeMembership4();
+
+    const joined =
+      active &&
+      Number(active.post_id) ===
+      Number(postId);
+
+    const hasOtherGroup =
+      active && !joined;
+
+    openSheet(
+      '모임 상세',
+      `
+        ${
+          !joined
+            ? `
+              <button
+                id="bsc4-back"
+                class="bsc4-back"
+                type="button"
+              >
+                ‹ 커뮤니티 목록으로
+              </button>
+            `
+            : ''
+        }
+
+        <section class="bsc-detail-card">
+
+          <div class="bsc-community-meta">
+
+            <strong>
+              ${esc4(post.nickname)}
+            </strong>
+
+            <span class="bsc-community-tag">
+              ${esc4(post.category || '모임')}
+            </span>
+
+            ${
+              joined
+                ? `
+                  <span class="bsc4-badge">
+                    ✓ 내가 가입한 모임
+                  </span>
+                `
+                : ''
+            }
+
+          </div>
+
+          <h3>${esc4(post.title)}</h3>
+          <p>${esc4(post.content)}</p>
+
+        </section>
+
+        <section class="bsc-detail-card">
+
+          <strong>
+            👥 현재 모임원
+            ${groupMembers.length}명
+          </strong>
+
+          <div class="bsc-member-list">
+
+            ${
+              groupMembers.length
+                ? groupMembers.map(m => `
+                    <span class="bsc-member">
+                      👤 ${esc4(m.nickname)}
+                    </span>
+                  `).join('')
+                : '아직 참여자가 없습니다.'
+            }
+
+          </div>
+
+        </section>
+
+        ${
+          joined
+            ? `
+              <section class="bsc-detail-card">
+
+                <strong>
+                  💬 모임원 채팅
+                </strong>
+
+                <div class="bsc4-chat">
+
+                  <div
+                    id="bsc4-messages"
+                    class="bsc4-messages"
+                  >
+                    채팅을 불러오는 중…
+                  </div>
+
+                  <form
+                    id="bsc4-chat-form"
+                    class="bsc4-chat-form"
+                  >
+
+                    <input
+                      name="message"
+                      maxlength="500"
+                      placeholder="메시지를 입력하세요."
+                      required
+                    />
+
+                    <button type="submit">
+                      전송
+                    </button>
+
+                  </form>
+
+                </div>
+
+                <button
+                  id="bsc4-leave"
+                  class="bsc4-leave"
+                  type="button"
+                >
+                  모임 탈퇴하기
+                </button>
+
+              </section>
+            `
+            : hasOtherGroup
+              ? `
+                <div class="bsc4-locked">
+                  이미 다른 모임에 가입되어 있습니다.
+                  현재 모임에서 탈퇴한 뒤 이 모임에 가입할 수 있습니다.
+                </div>
+              `
+              : `
+                <form
+                  id="bsc4-join"
+                  class="bsc-community-form"
+                >
+
+                  <strong>
+                    이 모임에 가입하기
+                  </strong>
+
+                  <input
+                    name="nickname"
+                    maxlength="30"
+                    placeholder="가입할 닉네임"
+                    value="${esc4(getNick4())}"
+                    required
+                  />
+
+                  <div
+                    id="bsc4-join-msg"
+                    class="bsc-community-status"
+                  ></div>
+
+                  <button
+                    type="submit"
+                    class="bsc-community-submit"
+                  >
+                    모임 가입하기
+                  </button>
+
+                </form>
+              `
+        }
+      `
+    );
+
+    document
+      .getElementById('bsc4-back')
+      ?.addEventListener(
+        'click',
+        showCommunityList4
+      );
+
+    document
+      .getElementById('bsc4-join')
+      ?.addEventListener(
+        'submit',
+        e => joinGroup4(e,postId)
+      );
+
+    document
+      .getElementById('bsc4-leave')
+      ?.addEventListener(
+        'click',
+        () => leaveGroup4(postId)
+      );
+
+    document
+      .getElementById('bsc4-chat-form')
+      ?.addEventListener(
+        'submit',
+        e => sendMessage4(e,postId)
+      );
+
+    if (joined) {
+      await loadMessages4(postId);
+      subscribe4(postId);
+    }
+  }
+
+  async function joinGroup4(event,postId){
+    event.preventDefault();
+
+    await refresh4();
+
+    /*
+      브라우저에 이미 활성 가입이 있으면 차단
+    */
+    if (activeMembership4()) {
+      alert(
+        '이미 다른 모임에 가입되어 있습니다. 먼저 탈퇴해 주세요.'
+      );
+
+      community4();
+      return;
+    }
+
+    const form = event.currentTarget;
+
+    const nick =
+      saveNick4(
+        form.elements.nickname.value
+      );
+
+    const msg =
+      document.getElementById(
+        'bsc4-join-msg'
+      );
+
+    if (!nick) {
+      msg.textContent =
+        '닉네임을 입력해 주세요.';
+      return;
+    }
+
+    const result = await db4
+      .from('community_members')
+      .insert({
+        post_id:postId,
+        nickname:nick
+      });
+
+    if (result.error) {
+      console.error(result.error);
+
+      /*
+        DB unique index 때문에
+        다른 모임 가입도 여기서 한 번 더 막힘
+      */
+      if (result.error.code === '23505') {
+        msg.textContent =
+          '이미 가입한 모임이 있습니다. 먼저 탈퇴해 주세요.';
+      } else {
+        msg.textContent =
+          '모임 가입에 실패했습니다.';
+      }
+
+      return;
+    }
+
+    await refresh4();
+
+    /*
+      가입 직후 바로 채팅방으로 전환
+    */
+    openGroup4(postId);
+  }
+
+  async function leaveGroup4(postId){
+    const active =
+      activeMembership4();
+
+    if (
+      !active ||
+      Number(active.post_id) !==
+        Number(postId)
+    ) {
+      return;
+    }
+
+    if (
+      !confirm(
+        '이 모임에서 탈퇴할까요?'
+      )
+    ) {
+      return;
+    }
+
+    const result = await db4
+      .from('community_members')
+      .delete()
+      .eq('id',active.id);
+
+    if (result.error) {
+      console.error(result.error);
+
+      alert(
+        '모임 탈퇴에 실패했습니다.'
+      );
+      return;
+    }
+
+    if (chat4) {
+      db4.removeChannel(chat4);
+      chat4 = null;
+    }
+
+    /*
+      탈퇴 후에는 닉네임은 유지.
+      다른 모임 가입 시 같은 닉네임을 재사용.
+    */
+    await refresh4();
+
+    alert(
+      '모임에서 탈퇴했습니다. 이제 다른 모임에 가입할 수 있습니다.'
+    );
+
+    showCommunityList4();
+  }
+
+  async function loadMessages4(postId){
+    const box =
+      document.getElementById(
+        'bsc4-messages'
+      );
+
+    if (!box) return;
+
+    const result = await db4
+      .from('community_messages')
+      .select(
+        'id,nickname,message,created_at'
+      )
+      .eq('post_id',postId)
+      .order(
+        'created_at',
+        {ascending:true}
+      )
+      .limit(100);
+
+    if (result.error) {
+      console.error(result.error);
+
+      box.textContent =
+        '채팅을 불러오지 못했습니다.';
+      return;
+    }
+
+    const rows =
+      result.data || [];
+
+    if (!rows.length) {
+      box.innerHTML =
+        '<div class="bsc-community-status">첫 메시지를 남겨보세요 🌊</div>';
+      return;
+    }
+
+    box.innerHTML =
+      rows.map(row => `
+        <div class="bsc4-message">
+
+          <strong>
+            ${esc4(row.nickname)}
+          </strong>
+
+          <p>
+            ${esc4(row.message)}
+          </p>
+
+        </div>
+      `).join('');
+
+    box.scrollTop =
+      box.scrollHeight;
+  }
+
+  async function sendMessage4(
+    event,
+    postId
+  ){
+    event.preventDefault();
+
+    await refresh4();
+
+    const active =
+      activeMembership4();
+
+    /*
+      탈퇴 후 열린 화면에서
+      메시지 전송하는 것도 차단
+    */
+    if (
+      !active ||
+      Number(active.post_id) !==
+        Number(postId)
+    ) {
+      alert(
+        '현재 이 모임의 모임원이 아닙니다.'
+      );
+
+      community4();
+      return;
+    }
+
+    const form =
+      event.currentTarget;
+
+    const text =
+      String(
+        form.elements.message.value ||
+        ''
+      ).trim();
+
+    if (!text) return;
+
+    const result = await db4
+      .from('community_messages')
+      .insert({
+        post_id:postId,
+        nickname:getNick4(),
+        message:text
+      });
+
+    if (result.error) {
+      console.error(result.error);
+
+      alert(
+        '메시지를 보내지 못했습니다.'
+      );
+      return;
+    }
+
+    form.reset();
+
+    await loadMessages4(postId);
+  }
+
+  function subscribe4(postId){
+    if (chat4) {
+      db4.removeChannel(chat4);
+    }
+
+    chat4 = db4
+      .channel(
+        'bsc4-chat-' +
+        postId +
+        '-' +
+        Date.now()
+      )
+      .on(
+        'postgres_changes',
+        {
+          event:'INSERT',
+          schema:'public',
+          table:'community_messages',
+          filter:
+            'post_id=eq.' +
+            postId
+        },
+        () =>
+          loadMessages4(postId)
+      )
+      .subscribe();
+  }
+
+  /*
+    이것이 앱에서 최종적으로 사용되는
+    커뮤니티 함수입니다.
+  */
+  window.community =
+    community4;
+
+  window.openBscCommunityDetail =
+    openGroup4;
+})();
+</script>
