@@ -5639,6 +5639,7 @@ ${
   /* Run the product refresh after all legacy feature patches have loaded. */
   window.BSC?.refresh();
 </script>
+<style>.bsc-visit-button{background:#075787!important}</style>
 <script>
   (() => {
     if (!window.BSC) return;
@@ -5648,7 +5649,7 @@ ${
       previousMy();
       setTimeout(() => {
         const button = document.querySelector('#profile button[onclick="BSC.visit()"]');
-        if (button) button.textContent = '해수욕장 방문 등록';
+        if (button) { button.textContent = '해수욕장 방문 등록'; button.classList.add('bsc-visit-button'); }
       }, 0);
     };
     window.BSC.visit = () => {
