@@ -5323,25 +5323,15 @@
               groupMembers.length
                 ? groupMembers.map(member => `
                     <span class="bsc-member">
-                      ${
-                        isOwner9(
-                          post,
-                          member.nickname
-                        )
-                          ? '👑 '
-                          : '👤 '
-                      }
-
-                      ${esc9(member.nickname)}
-
-                      ${
-                        isOwner9(
-                          post,
-                          member.nickname
-                        )
-                          ? ' · 대표'
-                          : ''
-                      }
+                    👤 ${esc9(member.nickname)}
+${
+  isOwner9(
+    post,
+    member.nickname
+  )
+    ? ' 👑 대표'
+    : ''
+}
                     </span>
                   `).join('')
                 : '아직 모임원이 없습니다.'
