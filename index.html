@@ -125,6 +125,48 @@
   buildBeachSearch();
   modal.addEventListener('click',e=>{if(e.target===modal)closeSheet()})
 </script>
+<style>
+  .bsc-ai-result{margin-top:12px;padding:13px;border-radius:13px;background:#e8f9fc;color:#075787;font-size:13px;line-height:1.55}.bsc-ai-result[hidden]{display:none}
+</style>
+<script>
+  (() => {
+    const apiUrl = location.hostname.endsWith('github.io')
+      ? 'https://bsc-busan-surf-cast.vercel.app/api/gemini'
+      : '/api/gemini';
+    async function aiRecommendation() {
+      const profile = JSON.parse(localStorage.getItem('bsc-member-profile') || 'null');
+      if (!profile) { window.BSC?.openMember(); return; }
+      const button = document.getElementById('bsc-ai-button');
+      const result = document.getElementById('bsc-ai-result');
+      if (!button || !result) return;
+      button.disabled = true; button.textContent = 'Loading AI recommendation...'; result.hidden = false; result.textContent = 'Analyzing current conditions...';
+      const beach = document.querySelector('#analysis h2')?.textContent || 'Busan beach';
+      const values = [...document.querySelectorAll('#analysis .bsc-grid b')].map(el => el.textContent.replace(/[^0-9.]/g, ''));
+      try {
+        const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ beach, wave: values[0] || '0', wind: values[1] || '0', temperature: values[2] || '0', level: profile.level || '초급' }) });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Unable to load the AI recommendation.');
+        result.textContent = data.recommendation;
+      } catch (error) { result.textContent = error.message || 'Unable to load the AI recommendation.'; }
+      finally { button.disabled = false; button.textContent = 'Get AI recommendation'; }
+    }
+    function installAiRecommendation() {
+      const refresh = window.BSC?.refresh;
+      if (!refresh) { setTimeout(installAiRecommendation, 0); return; }
+      window.BSC.refresh = () => {
+        refresh();
+      const analysis = document.getElementById('analysis');
+      if (analysis && !document.getElementById('bsc-ai-button')) {
+        const target = analysis.querySelector('.dashboard');
+        target?.insertAdjacentHTML('beforeend', '<section class="bsc-card"><h3>AI surf recommendation</h3><p>Get a safety-first tip based on current ocean conditions and your surfing level.</p><button class="bsc-cta" id="bsc-ai-button">Get AI recommendation</button><div class="bsc-ai-result" id="bsc-ai-result" hidden></div></section>');
+        document.getElementById('bsc-ai-button')?.addEventListener('click', aiRecommendation);
+      }
+      };
+      window.BSC.refresh();
+    }
+    installAiRecommendation();
+  })();
+</script>
 
 <!-- BSC product refresh: member/guest access, live beach data and surf journal -->
 <style>
