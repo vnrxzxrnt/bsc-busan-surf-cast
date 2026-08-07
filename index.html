@@ -4742,3 +4742,614 @@
     };
 })();
 </script>
+<!-- BSC Community Stable V9 -->
+<style>
+  .bsc9-owner {
+    display:inline-flex;
+    align-items:center;
+    gap:3px;
+    padding:4px 8px;
+    border-radius:999px;
+    background:#fff4c8;
+    color:#8a6500;
+    font-size:11px;
+    font-weight:800;
+  }
+
+  .bsc9-note {
+    margin:10px 0 14px;
+    padding:11px 12px;
+    border-radius:12px;
+    background:#f0f9fc;
+    color:#416878;
+    font-size:12px;
+  }
+
+  .bsc9-back {
+    width:100%;
+    padding:11px;
+    margin-bottom:10px;
+    border-radius:12px;
+    background:#e5f5fb;
+    color:#063b5d;
+    font-weight:800;
+  }
+</style>
+
+<script>
+(() => {
+  if (!window.supabase) return;
+
+  const db9 = window.supabase.createClient(
+    'https://qoxnqmztdhlbwzwgntkc.supabase.co',
+    'sb_publishable_iuh253NYT7p1D7QMToox1w_ab5Q1CS3'
+  );
+
+  let posts9 = [];
+  let members9 = [];
+
+  function esc9(v) {
+    return String(v ?? '')
+      .replaceAll('&','&amp;')
+      .replaceAll('<','&lt;')
+      .replaceAll('>','&gt;')
+      .replaceAll('"','&quot;')
+      .replaceAll("'",'&#039;');
+  }
+
+  function nick9() {
+    return (
+      localStorage.getItem('bsc-active-nickname') ||
+      localStorage.getItem('bsc-v3-nickname') ||
+      localStorage.getItem('bsc-my-nickname') ||
+      ''
+    ).trim();
+  }
+
+  function saveNick9(nickname) {
+    nickname =
+      String(nickname || '').trim();
+
+    if (!nickname) return '';
+
+    localStorage.setItem(
+      'bsc-active-nickname',
+      nickname
+    );
+
+    localStorage.setItem(
+      'bsc-v3-nickname',
+      nickname
+    );
+
+    localStorage.setItem(
+      'bsc-my-nickname',
+      nickname
+    );
+
+    return nickname;
+  }
+
+  async function refresh9() {
+    const [postResult, memberResult] =
+      await Promise.all([
+        db9
+          .from('community_posts')
+          .select(
+            'id,nickname,title,content,beach,category,created_at'
+          )
+          .order(
+            'created_at',
+            { ascending:false }
+          ),
+
+        db9
+          .from('community_members')
+          .select(
+            'id,post_id,nickname,joined_at'
+          )
+      ]);
+
+    if (postResult.error) {
+      throw postResult.error;
+    }
+
+    if (memberResult.error) {
+      throw memberResult.error;
+    }
+
+    posts9 = postResult.data || [];
+    members9 = memberResult.data || [];
+  }
+
+  function membership9() {
+    const nickname =
+      nick9().toLowerCase();
+
+    if (!nickname) return null;
+
+    return (
+      members9.find(member =>
+        String(member.nickname || '')
+          .trim()
+          .toLowerCase() === nickname
+      ) || null
+    );
+  }
+
+  function isOwner9(post, nickname) {
+    return (
+      String(post.nickname || '')
+        .trim()
+        .toLowerCase() ===
+      String(nickname || '')
+        .trim()
+        .toLowerCase()
+    );
+  }
+
+  async function community9() {
+    try {
+      await refresh9();
+    } catch(error) {
+      console.error(error);
+
+      alert(
+        '커뮤니티를 불러오지 못했습니다.'
+      );
+
+      return;
+    }
+
+    const membership =
+      membership9();
+
+    if (membership) {
+      openGroup9(
+        membership.post_id
+      );
+      return;
+    }
+
+    showFreeCommunity9();
+  }
+
+  function showFreeCommunity9() {
+    openSheet(
+      'BSC 커뮤니티',
+      `
+        <p>
+          현재 가입한 모임이 없습니다.
+        </p>
+
+        <div class="bsc9-note">
+          기존 모임에 가입하거나
+          새로운 모임을 만들 수 있습니다.
+        </div>
+
+        <section
+          id="bsc9-feed"
+          class="bsc-community-feed"
+        ></section>
+
+        <form
+          id="bsc9-create"
+          class="bsc-community-form"
+        >
+          <strong>
+            새 모임 만들기
+          </strong>
+
+          <input
+            name="nickname"
+            maxlength="30"
+            placeholder="닉네임"
+            value="${esc9(nick9())}"
+            required
+          />
+
+          <select name="beach">
+            <option value="">
+              해변 선택
+            </option>
+            <option value="송정">송정</option>
+            <option value="해운대">해운대</option>
+            <option value="광안리">광안리</option>
+            <option value="다대포">다대포</option>
+            <option value="송도">송도</option>
+            <option value="일광">일광</option>
+            <option value="임랑">임랑</option>
+          </select>
+
+          <input
+            name="title"
+            maxlength="100"
+            placeholder="모임 이름"
+            required
+          />
+
+          <textarea
+            name="content"
+            maxlength="2000"
+            placeholder="모임 소개를 입력해 주세요."
+            required
+          ></textarea>
+
+          <div
+            id="bsc9-create-message"
+            class="bsc-community-status"
+          ></div>
+
+          <button
+            type="submit"
+            class="bsc-community-submit"
+          >
+            모임 만들기
+          </button>
+        </form>
+      `
+    );
+
+    renderGroups9();
+
+    const createForm =
+      document.getElementById(
+        'bsc9-create'
+      );
+
+    if (createForm) {
+      createForm.onsubmit =
+        createGroup9;
+    }
+  }
+
+  function renderGroups9() {
+    const feed =
+      document.getElementById(
+        'bsc9-feed'
+      );
+
+    if (!feed) return;
+
+    const groups =
+      posts9.filter(
+        post =>
+          post.category === '모임'
+      );
+
+    if (!groups.length) {
+      feed.innerHTML =
+        '<div class="bsc-community-status">' +
+        '아직 만들어진 모임이 없습니다.' +
+        '</div>';
+
+      return;
+    }
+
+    feed.innerHTML =
+      groups.map(post => `
+        <article
+          class="bsc-community-post"
+          data-bsc9-post="${post.id}"
+          style="cursor:pointer"
+        >
+          <div class="bsc-community-meta">
+
+            <strong>
+              ${esc9(post.nickname)}
+            </strong>
+
+            <span class="bsc9-owner">
+              👑 대표
+            </span>
+
+            ${
+              post.beach
+                ? `<span>🏖 ${esc9(post.beach)}</span>`
+                : ''
+            }
+
+          </div>
+
+          <h3>
+            ${esc9(post.title)}
+          </h3>
+
+          <p>
+            ${esc9(post.content)}
+          </p>
+
+          <div
+            style="
+              margin-top:10px;
+              color:#0877ad;
+              font-size:12px;
+              font-weight:800;
+            "
+          >
+            모임 보기 →
+          </div>
+
+        </article>
+      `).join('');
+
+    feed
+      .querySelectorAll(
+        '[data-bsc9-post]'
+      )
+      .forEach(card => {
+
+        card.onclick = () => {
+          openGroup9(
+            Number(
+              card.dataset.bsc9Post
+            )
+          );
+        };
+      });
+  }
+
+  async function createGroup9(event) {
+    event.preventDefault();
+
+    const form =
+      event.currentTarget;
+
+    const message =
+      document.getElementById(
+        'bsc9-create-message'
+      );
+
+    const button =
+      form.querySelector(
+        'button[type="submit"]'
+      );
+
+    try {
+      await refresh9();
+
+      if (membership9()) {
+        alert(
+          '이미 가입한 모임이 있습니다. 먼저 탈퇴해 주세요.'
+        );
+        return;
+      }
+
+      const fd =
+        new FormData(form);
+
+      const nickname =
+        saveNick9(
+          fd.get('nickname')
+        );
+
+      const title =
+        String(
+          fd.get('title') || ''
+        ).trim();
+
+      const content =
+        String(
+          fd.get('content') || ''
+        ).trim();
+
+      const beach =
+        String(
+          fd.get('beach') || ''
+        ).trim();
+
+      if (
+        !nickname ||
+        !title ||
+        !content
+      ) {
+        message.textContent =
+          '닉네임, 모임 이름, 소개를 입력해 주세요.';
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent =
+        '만드는 중…';
+
+      const postResult =
+        await db9
+          .from('community_posts')
+          .insert({
+            nickname,
+            title,
+            content,
+            beach,
+            category:'모임'
+          })
+          .select('id')
+          .single();
+
+      if (postResult.error) {
+        throw postResult.error;
+      }
+
+      const memberResult =
+        await db9
+          .from('community_members')
+          .insert({
+            post_id:
+              postResult.data.id,
+            nickname
+          });
+
+      if (memberResult.error) {
+        /*
+          게시물은 만들어졌지만
+          가입 실패 시 고아 모임 방지
+        */
+        await db9
+          .from('community_posts')
+          .delete()
+          .eq(
+            'id',
+            postResult.data.id
+          );
+
+        throw memberResult.error;
+      }
+
+      await refresh9();
+
+      openGroup9(
+        postResult.data.id
+      );
+
+    } catch(error) {
+      console.error(
+        'create group error',
+        error
+      );
+
+      if (message) {
+        message.textContent =
+          '모임 만들기에 실패했습니다: ' +
+          (
+            error.message ||
+            '알 수 없는 오류'
+          );
+      }
+
+    } finally {
+      if (button) {
+        button.disabled = false;
+        button.textContent =
+          '모임 만들기';
+      }
+    }
+  }
+
+  async function openGroup9(postId) {
+    try {
+      await refresh9();
+    } catch(error) {
+      console.error(error);
+      return;
+    }
+
+    const post =
+      posts9.find(
+        item =>
+          Number(item.id) ===
+          Number(postId)
+      );
+
+    if (!post) return;
+
+    const current =
+      membership9();
+
+    const joined =
+      current &&
+      Number(current.post_id) ===
+      Number(postId);
+
+    const otherGroup =
+      current && !joined;
+
+    const groupMembers =
+      members9.filter(
+        member =>
+          Number(member.post_id) ===
+          Number(postId)
+      );
+
+    openSheet(
+      '모임 상세',
+      `
+        ${
+          !joined
+            ? `
+              <button
+                id="bsc9-back"
+                class="bsc9-back"
+                type="button"
+              >
+                ‹ 커뮤니티 목록으로
+              </button>
+            `
+            : ''
+        }
+
+        <section class="bsc-detail-card">
+
+          <div class="bsc-community-meta">
+
+            <strong>
+              ${esc9(post.nickname)}
+            </strong>
+
+            <span class="bsc9-owner">
+              👑 대표
+            </span>
+
+            ${
+              joined
+                ? `
+                  <span class="bsc4-badge">
+                    ✓ 내가 가입한 모임
+                  </span>
+                `
+                : ''
+            }
+
+          </div>
+
+          <h3>
+            ${esc9(post.title)}
+          </h3>
+
+          <p>
+            ${esc9(post.content)}
+          </p>
+
+        </section>
+
+        <section class="bsc-detail-card">
+
+          <strong>
+            👥 모임원
+            ${groupMembers.length}명
+          </strong>
+
+          <div class="bsc-member-list">
+
+            ${
+              groupMembers.length
+                ? groupMembers.map(member => `
+                    <span class="bsc-member">
+                      ${
+                        isOwner9(
+                          post,
+                          member.nickname
+                        )
+                          ? '👑 '
+                          : '👤 '
+                      }
+
+                      ${esc9(member.nickname)}
+
+                      ${
+                        isOwner9(
+                          post,
+                          member.nickname
+                        )
+                          ? ' · 대표'
+                          : ''
+                      }
+                    </span>
+                  `).join('')
+                : '아직 모임원이 없습니다.'
+            }
+
+          </div>
+
+        </section>
+
+        ${
+          joined
