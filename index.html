@@ -1149,3 +1149,463 @@
   };
 })();
 </script>
+<!-- BSC My Groups + Chat + Leave Upgrade -->
+<style>
+  .bsc-my-group-badge{
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    padding:4px 8px;
+    border-radius:999px;
+    background:#063b5d;
+    color:#fff;
+    font-size:11px;
+    font-weight:800;
+  }
+
+  .bsc-chat-box{
+    margin-top:12px;
+    border:1px solid #d9e8ef;
+    border-radius:16px;
+    overflow:hidden;
+    background:#fff;
+  }
+
+  .bsc-chat-messages{
+    max-height:260px;
+    overflow-y:auto;
+    padding:12px;
+    display:grid;
+    gap:8px;
+    background:#f8fdff;
+  }
+
+  .bsc-chat-message{
+    padding:9px 11px;
+    border-radius:12px;
+    background:#fff;
+    border:1px solid #e1edf2;
+  }
+
+  .bsc-chat-message strong{
+    display:block;
+    color:#063b5d;
+    font-size:12px;
+    margin-bottom:3px;
+  }
+
+  .bsc-chat-message p{
+    margin:0;
+    color:#34596b;
+    font-size:13px;
+    white-space:pre-wrap;
+    overflow-wrap:anywhere;
+  }
+
+  .bsc-chat-form{
+    display:flex;
+    gap:7px;
+    padding:10px;
+    border-top:1px solid #d9e8ef;
+  }
+
+  .bsc-chat-form input{
+    flex:1;
+    min-width:0;
+    padding:11px;
+    border:1px solid #cfe4ed;
+    border-radius:11px;
+    font:inherit;
+  }
+
+  .bsc-chat-form button{
+    padding:0 15px;
+    border-radius:11px;
+    background:#063b5d;
+    color:white;
+    font-weight:800;
+  }
+
+  .bsc-leave-button{
+    width:100%;
+    padding:12px;
+    margin-top:10px;
+    border-radius:12px;
+    background:#fff0ed;
+    color:#b94f3d;
+    border:1px solid #ffd2ca;
+    font-weight:800;
+  }
+</style>
+
+<script>
+(() => {
+  let bscChatChannel = null;
+
+  function getMyBscNickname() {
+    return localStorage.getItem('bsc-my-nickname') || '';
+  }
+
+  function setMyBscNickname(nickname) {
+    localStorage.setItem('bsc-my-nickname', nickname);
+  }
+
+  function isMyBscGroup(postId) {
+    const nickname = getMyBscNickname();
+
+    if (!nickname) return false;
+
+    return communityMembers.some(member =>
+      Number(member.post_id) === Number(postId) &&
+      member.nickname === nickname
+    );
+  }
+
+  async function loadBscMessages(postId) {
+    const box = document.getElementById('bsc-chat-messages');
+
+    if (!box) return;
+
+    box.innerHTML = '채팅을 불러오는 중이에요…';
+
+    const { data, error } = await communityDb
+      .from('community_messages')
+      .select('id,post_id,nickname,message,created_at')
+      .eq('post_id', postId)
+      .order('created_at', { ascending: true })
+      .limit(100);
+
+    if (error) {
+      console.error(error);
+      box.innerHTML = '채팅을 불러오지 못했습니다.';
+      return;
+    }
+
+    renderBscMessages(data || []);
+  }
+
+  function renderBscMessages(messages) {
+    const box = document.getElementById('bsc-chat-messages');
+
+    if (!box) return;
+
+    if (!messages.length) {
+      box.innerHTML =
+        '<div class="bsc-community-status">첫 메시지를 남겨보세요 🌊</div>';
+      return;
+    }
+
+    box.innerHTML = messages.map(item => `
+      <div class="bsc-chat-message">
+        <strong>${esc(item.nickname)}</strong>
+        <p>${esc(item.message)}</p>
+      </div>
+    `).join('');
+
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function subscribeBscChat(postId) {
+    if (bscChatChannel) {
+      communityDb.removeChannel(bscChatChannel);
+    }
+
+    bscChatChannel = communityDb
+      .channel('bsc-chat-' + postId)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'community_messages',
+          filter: 'post_id=eq.' + postId
+        },
+        () => loadBscMessages(postId)
+      )
+      .subscribe();
+  }
+
+  async function sendBscMessage(event, postId) {
+    event.preventDefault();
+
+    const nickname = getMyBscNickname();
+    const input = event.currentTarget.elements.message;
+    const message = String(input.value || '').trim();
+
+    if (!nickname || !message) return;
+
+    const button =
+      event.currentTarget.querySelector('button');
+
+    button.disabled = true;
+
+    const { error } = await communityDb
+      .from('community_messages')
+      .insert({
+        post_id: postId,
+        nickname,
+        message
+      });
+
+    button.disabled = false;
+
+    if (error) {
+      console.error(error);
+      alert('메시지를 보내지 못했습니다.');
+      return;
+    }
+
+    input.value = '';
+    await loadBscMessages(postId);
+  }
+
+  async function leaveBscGroup(postId) {
+    const nickname = getMyBscNickname();
+
+    if (!nickname) return;
+
+    if (!confirm('이 모임에서 탈퇴할까요?')) return;
+
+    const { error } = await communityDb
+      .from('community_members')
+      .delete()
+      .eq('post_id', postId)
+      .eq('nickname', nickname);
+
+    if (error) {
+      console.error(error);
+      alert('모임 탈퇴에 실패했습니다.');
+      return;
+    }
+
+    await refreshBscMembers();
+
+    alert('모임에서 탈퇴했습니다.');
+    window.openBscCommunityDetail(postId);
+  }
+
+  const previousJoinBscCommunity = joinBscCommunity;
+
+  joinBscCommunity = async function(event, postId) {
+    const nickname =
+      String(event.currentTarget.elements.nickname.value || '')
+        .trim();
+
+    if (nickname) {
+      setMyBscNickname(nickname);
+    }
+
+    return previousJoinBscCommunity(event, postId);
+  };
+
+  const previousOpenBscDetail =
+    window.openBscCommunityDetail;
+
+  window.openBscCommunityDetail =
+    async function(postId) {
+
+    await refreshBscMembers();
+
+    const post = communityPosts.find(
+      p => Number(p.id) === Number(postId)
+    );
+
+    if (!post) return;
+
+    const members = communityMembers.filter(
+      m => Number(m.post_id) === Number(postId)
+    );
+
+    const joined = isMyBscGroup(postId);
+    const myNickname = getMyBscNickname();
+
+    openSheet(
+      '모임 상세',
+      `
+        <button
+          class="bsc-back-button"
+          onclick="community()"
+        >
+          ‹ 커뮤니티 목록으로
+        </button>
+
+        <section class="bsc-detail-card">
+
+          <div class="bsc-community-meta">
+            <strong>${esc(post.nickname)}</strong>
+
+            <span class="bsc-community-tag">
+              ${esc(post.category || '모임')}
+            </span>
+
+            ${
+              joined
+                ? '<span class="bsc-my-group-badge">✓ 내가 가입한 모임</span>'
+                : ''
+            }
+          </div>
+
+          <h3>${esc(post.title)}</h3>
+          <p>${esc(post.content)}</p>
+
+        </section>
+
+        <section class="bsc-detail-card">
+          <strong>
+            👥 현재 참여자 ${members.length}명
+          </strong>
+
+          <div class="bsc-member-list">
+            ${
+              members.length
+                ? members.map(member => `
+                    <span class="bsc-member">
+                      👤 ${esc(member.nickname)}
+                    </span>
+                  `).join('')
+                : '아직 참여자가 없습니다.'
+            }
+          </div>
+        </section>
+
+        ${
+          joined
+            ? `
+              <section class="bsc-detail-card">
+                <strong>💬 모임 채팅</strong>
+
+                <div class="bsc-chat-box">
+
+                  <div
+                    id="bsc-chat-messages"
+                    class="bsc-chat-messages"
+                  ></div>
+
+                  <form
+                    id="bsc-chat-form"
+                    class="bsc-chat-form"
+                  >
+                    <input
+                      name="message"
+                      maxlength="500"
+                      placeholder="${esc(myNickname)} 님, 메시지를 입력하세요."
+                      required
+                    />
+
+                    <button type="submit">
+                      전송
+                    </button>
+                  </form>
+
+                </div>
+
+                <button
+                  id="bsc-leave-group"
+                  class="bsc-leave-button"
+                  type="button"
+                >
+                  모임 탈퇴하기
+                </button>
+              </section>
+            `
+            : `
+              <form
+                id="bsc-join-form"
+                class="bsc-community-form"
+              >
+                <strong>이 모임에 가입하기</strong>
+
+                <input
+                  name="nickname"
+                  maxlength="30"
+                  placeholder="가입할 닉네임"
+                  required
+                />
+
+                <div
+                  id="bsc-join-message"
+                  class="bsc-community-status"
+                ></div>
+
+                <button
+                  type="submit"
+                  class="bsc-community-submit"
+                >
+                  모임 가입하기
+                </button>
+              </form>
+            `
+        }
+      `
+    );
+
+    const joinForm =
+      document.getElementById('bsc-join-form');
+
+    if (joinForm) {
+      joinForm.addEventListener(
+        'submit',
+        event => joinBscCommunity(event, postId)
+      );
+    }
+
+    if (joined) {
+      document
+        .getElementById('bsc-chat-form')
+        ?.addEventListener(
+          'submit',
+          event => sendBscMessage(event, postId)
+        );
+
+      document
+        .getElementById('bsc-leave-group')
+        ?.addEventListener(
+          'click',
+          () => leaveBscGroup(postId)
+        );
+
+      await loadBscMessages(postId);
+      subscribeBscChat(postId);
+    }
+  };
+
+  const previousLoadBscCommunity = loadBscCommunity;
+
+  loadBscCommunity = async function() {
+    await previousLoadBscCommunity();
+
+    const nickname = getMyBscNickname();
+
+    if (!nickname) return;
+
+    document
+      .querySelectorAll('.bsc-community-post')
+      .forEach(card => {
+        const onclick =
+          card.getAttribute('onclick') || '';
+
+        const match =
+          onclick.match(/\((\d+)\)/);
+
+        if (!match) return;
+
+        const postId = Number(match[1]);
+
+        if (!isMyBscGroup(postId)) return;
+
+        const meta =
+          card.querySelector('.bsc-community-meta');
+
+        if (
+          meta &&
+          !meta.querySelector('.bsc-my-group-badge')
+        ) {
+          meta.insertAdjacentHTML(
+            'beforeend',
+            '<span class="bsc-my-group-badge">✓ 가입한 모임</span>'
+          );
+        }
+      });
+  };
+})();
+</script>
