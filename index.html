@@ -6,7 +6,24 @@
   <meta name="theme-color" content="#063b5d" />
   <base href="https://vnrxzxrnt.github.io/bsc-busan-surf-cast/" />
   <title>BSC · Busan Surf Cast</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    window.BSC_LOAD_MAP = (() => {
+      let promise;
+      return () => promise || (promise = new Promise((resolve, reject) => {
+        if (window.L) { resolve(); return; }
+        const style = document.createElement('link');
+        style.rel = 'stylesheet';
+        style.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.append(style);
+        const script = document.createElement('script');
+        const timer = setTimeout(() => { promise = null; reject(new Error('지도 연결 시간 초과')); }, 8000);
+        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        script.onload = () => { clearTimeout(timer); resolve(); };
+        script.onerror = () => { clearTimeout(timer); promise = null; reject(new Error('지도 연결 실패')); };
+        document.head.append(script);
+      }));
+    })();
+  </script>
   <style>
     :root{--navy:#063b5d;--blue:#0077b6;--sky:#d8f3ff;--foam:#f4fcff;--mint:#54d6c5;--coral:#ff866d;--ink:#102b3d;--muted:#6a8393;--line:#d9e8ef;--white:#fff;--shadow:0 12px 32px rgba(5,61,93,.13)}
     *{box-sizing:border-box} body{margin:0;background:#eaf4f7;font-family:Pretendard,Apple SD Gothic Neo,Malgun Gothic,Arial,sans-serif;color:var(--ink)} button{font:inherit;border:0;cursor:pointer} .app{width:min(100%,440px);min-height:100vh;margin:auto;background:var(--foam);position:relative;overflow:hidden;padding-bottom:88px}.screen{display:none}.screen.active{display:block}.top{padding:16px 20px 10px;display:flex;align-items:center;justify-content:space-between}.brand{font-size:15px;font-weight:800;color:var(--navy);letter-spacing:-.4px}.brand span{color:var(--blue)}.iconbtn{width:38px;height:38px;border-radius:50%;background:#e5f5fb;color:var(--navy);font-size:18px}.hero{margin:2px 16px 18px;padding:22px 20px 20px;min-height:285px;color:white;position:relative;overflow:hidden;border-radius:28px;background:linear-gradient(145deg,#005987 0%,#087fb7 48%,#4ec4d5 100%);box-shadow:var(--shadow)}.hero:after{content:"";position:absolute;width:260px;height:260px;border-radius:50%;right:-95px;top:-85px;border:28px solid rgba(255,255,255,.13)}.sun{position:absolute;right:34px;top:48px;width:56px;height:56px;border-radius:50%;background:#ffe498;box-shadow:0 0 0 12px rgba(255,255,255,.1)}.wave{position:absolute;left:-16px;right:-16px;height:95px;bottom:-24px;background:radial-gradient(ellipse at 50% 0,transparent 0 42%,#a8edf0 43% 54%,transparent 55%) 0 0/115px 72px repeat-x;opacity:.85}.hero .eyebrow,.section-label{font-size:11px;font-weight:800;letter-spacing:1.2px}.hero h1{position:relative;z-index:1;margin:11px 0 8px;font-size:30px;letter-spacing:-1.7px;line-height:1.18}.hero p{position:relative;z-index:1;margin:0;font-size:14px;line-height:1.55;opacity:.9}.surf{position:absolute;right:30px;bottom:17px;font-size:70px;z-index:2;transform:rotate(-10deg)}.quest{margin:0 16px 22px;background:white;border-radius:22px;padding:17px;box-shadow:0 5px 18px rgba(5,61,93,.06)}.quest-top{display:flex;justify-content:space-between;align-items:center}.quest h2{margin:5px 0 3px;font-size:19px;letter-spacing:-.8px}.quest p{margin:0;color:var(--muted);font-size:13px}.pill{background:#e1f8f4;color:#087b71;border-radius:999px;padding:6px 9px;font-size:11px;font-weight:800}.cta{margin-top:14px;width:100%;padding:14px;border-radius:14px;background:var(--navy);color:white;font-weight:800;font-size:15px}.quick{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0 16px 22px}.quick button{background:white;border-radius:18px;padding:14px 7px 12px;color:var(--ink);box-shadow:0 4px 14px rgba(5,61,93,.06);font-weight:700;font-size:12px}.quick i{display:block;font-style:normal;font-size:24px;margin-bottom:7px}.section{margin:0 16px 20px}.section-title{display:flex;align-items:end;justify-content:space-between;margin-bottom:10px}.section-title h3{margin:0;font-size:17px;letter-spacing:-.7px}.section-title span{font-size:12px;color:var(--blue);font-weight:700}.spot{display:flex;gap:13px;align-items:center;background:white;border-radius:18px;padding:12px;box-shadow:0 4px 14px rgba(5,61,93,.05)}.spot-art{width:74px;height:74px;flex:none;border-radius:14px;background:linear-gradient(150deg,#68dbe1,#1677ad 60%,#074e79);display:grid;place-items:center;font-size:34px}.spot strong{display:block;font-size:15px}.spot small{display:block;color:var(--muted);font-size:12px;margin-top:4px}.safe{margin-top:8px;font-size:12px;color:#087b71;font-weight:800}.nav{height:74px;position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(100%,440px);background:rgba(255,255,255,.96);border-top:1px solid var(--line);display:flex;justify-content:space-around;z-index:10;padding-top:9px}.nav button{background:transparent;color:#7e96a4;font-size:10px;font-weight:700;min-width:62px}.nav b{font-size:21px;display:block;line-height:25px;font-weight:400}.nav button.on{color:var(--navy)}
@@ -217,7 +234,6 @@
       });
       enhancing = false;
     }
-    new MutationObserver(() => queueMicrotask(enhanceUi)).observe(document.body,{childList:true,subtree:true,characterData:true});
     enhanceUi();
   })();
 </script>
@@ -250,7 +266,6 @@
       document.querySelectorAll('#analysis .bsc-card').forEach(card=>{const heading=card.querySelector('h3');if(heading?.textContent==='해상 분석 구역'){const description=card.querySelector('p');if(description)description.textContent='첨부 예시처럼 해안선을 따라 나눈 BSC 분석 구역이며, 육지와 하천은 제외했습니다.'}if(heading?.textContent==='근처 장비 대여점'){heading.textContent='확인된 장비 대여점';const list=card.querySelector('.bsc-list');if(list&&!list.children.length)list.innerHTML='<div class="bsc-rental-empty">현재 온라인에서 확인된 상시 장비 대여점이 없습니다. 가상의 업체는 표시하지 않아요.</div>';list?.querySelectorAll('.bsc-row').forEach(row=>{const name=row.querySelector('b')?.textContent||'',small=row.querySelector('small');if(small&&shopDetails[name])small.textContent=shopDetails[name]})}});
       enhancing=false;
     }
-    new MutationObserver(()=>queueMicrotask(enhanceUi)).observe(document.body,{childList:true,subtree:true,characterData:true});
     enhanceUi();
   })();
 </script>
@@ -349,7 +364,7 @@
   const esc=s=>String(s||'').replace(/[&<>'\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[c]));
   function memberOnly(action){if(profile()) return action(); document.getElementById('bsc-access').hidden=false;}
   function access(){if(!localStorage.getItem('bsc-access-seen')&&!profile())document.getElementById('bsc-access').hidden=false;}
-  function select(id){if(!BEACHES[id])return;beach=id;window.bscSelectedBeach=id;localStorage.setItem('bsc-selected-beach',id); renderAnalysis(); if(window.showScreen)window.showScreen('analysis');}
+  function select(id){if(!BEACHES[id])return;beach=id;window.bscSelectedBeach=id;localStorage.setItem('bsc-selected-beach',id);renderAnalysis();window.BSC_LOAD_MAP?.().then(renderAnalysis).catch(()=>{});if(window.showScreen)window.showScreen('analysis');}
   async function marine(){const b=BEACHES[beach]; const url=`https://marine-api.open-meteo.com/v1/marine?latitude=${b.lat}&longitude=${b.lng}&current=wave_height,sea_surface_temperature&hourly=wave_height&timezone=Asia%2FSeoul`; const weather=`https://api.open-meteo.com/v1/forecast?latitude=${b.lat}&longitude=${b.lng}&current=temperature_2m,wind_speed_10m,uv_index&hourly=temperature_2m&timezone=Asia%2FSeoul`; const [m,w]=await Promise.all([fetch(url).then(r=>r.json()),fetch(weather).then(r=>r.json())]);return {wave:m.current.wave_height||0,sea:m.current.sea_surface_temperature||0,wind:w.current.wind_speed_10m||0,temp:w.current.temperature_2m||0,uv:w.current.uv_index||0,time:w.current.time,temps:w.hourly};}
   function bestTime(data){const now=new Date().getHours(), h=data.temps.time.map(t=>new Date(t).getHours());const candidates=h.map((hour,i)=>({hour,temp:data.temps.temperature_2m[i],score:(hour>=8&&hour<=18?3:0)-(Math.abs(hour-14)*.12)})).filter(x=>x.hour>=now&&x.hour<=18).sort((a,b)=>b.score-a.score);return candidates[0]||{hour:14,temp:data.temp};}
   function homeBeachEntries(){const area=profile()?.area,entries=Object.entries(BEACHES);if(!area||area==='없다')return entries;return entries.sort((a,b)=>Number(b[1].name===area)-Number(a[1].name===area));}
@@ -366,9 +381,9 @@
   function visit(){memberOnly(()=>{const v=visits();v.push({beach,date:new Date().toISOString()});localStorage.setItem('bsc-visits',JSON.stringify(v));my();});}
   function levels(){openSheet('BSC 등급표',`<div class="bsc-list">${[['🥉 Bronze','파도 일지 0~9개'],['🥈 Silver','파도 일지 10~29개'],['🥇 Gold','파도 일지 30~59개'],['🏆 Master','파도 일지 60개 이상']].map(x=>`<div class="bsc-row"><b>${x[0]}</b><span>${x[1]}</span></div>`).join('')}</div>`)}
   function openMember(){document.getElementById('bsc-access').hidden=true;openSheet('프로필 만들기',`<form class="bsc-journal-form" id="member-form"><input name="name" maxlength="16" placeholder="닉네임" required><select name="level"><option>초급</option><option>중급</option><option>고급</option></select><select name="area"><option value="없다">근처 해수욕장을 선택하세요</option>${Object.values(BEACHES).map(b=>`<option>${b.name}</option>`).join('')}</select><button class="bsc-cta">시작하기</button></form>`);document.getElementById('member-form').onsubmit=e=>{e.preventDefault();const d=new FormData(e.currentTarget),area=d.get('area'),selected=Object.entries(BEACHES).find(([,item])=>item.name===area)?.[0];localStorage.setItem('bsc-member-profile',JSON.stringify({name:d.get('name'),level:d.get('level'),area}));if(selected){beach=selected;window.bscSelectedBeach=selected;localStorage.setItem('bsc-selected-beach',selected)}closeSheet();renderHome();renderAnalysis();showScreen('home')}}
-  function community(){memberOnly(()=>window.community&&window.community())} function rental(name){const query=encodeURIComponent(`${name} ${BEACHES[beach].name}`),url=`https://map.naver.com/p/search/${query}`;openSheet(`${name} 대여`, `<p>${BEACHES[beach].name} 인근 대여점입니다. 실제 운영 정보와 홈페이지·예약 링크를 확인할 수 있어요.</p><a class="bsc-cta" href="${url}" target="_blank" rel="noopener">대여점 홈페이지·예약 보기</a>`)}
+  function community(){memberOnly(async()=>{try{await window.BSC_LOAD_COMMUNITY?.();window.BSC_COMMUNITY_OPEN?.()}catch(error){console.error(error);openSheet('커뮤니티 연결 지연','<p>커뮤니티 연결이 늦어지고 있어요. 기본 화면은 계속 이용할 수 있으며 잠시 후 다시 시도해 주세요.</p>')}})} function rental(name){const query=encodeURIComponent(`${name} ${BEACHES[beach].name}`),url=`https://map.naver.com/p/search/${query}`;openSheet(`${name} 대여`, `<p>${BEACHES[beach].name} 인근 대여점입니다. 실제 운영 정보와 홈페이지·예약 링크를 확인할 수 있어요.</p><a class="bsc-cta" href="${url}" target="_blank" rel="noopener">대여점 홈페이지·예약 보기</a>`)}
   window.BSC={select,guest:()=>{localStorage.setItem('bsc-access-seen','1');document.getElementById('bsc-access').hidden=true},openMember,journal,writeJournal,my,visit,levels,community,rental,logout,refresh:()=>{document.getElementById('onboarding')?.remove();document.querySelector('.nav button[data-target="location"]')?.remove();renderHome();renderAnalysis();access()},zone:(z,el)=>{document.querySelectorAll('.bsc-zone button').forEach(x=>x.classList.remove('on'));el.classList.add('on')}};
-  renderHome();renderAnalysis();access();setInterval(()=>{if(document.getElementById('analysis').classList.contains('active'))renderAnalysis();updateHome()},600000);
+  renderHome();renderAnalysis();access();document.querySelector('.nav button[data-target="analysis"]')?.addEventListener('click',()=>window.BSC_LOAD_MAP?.().then(renderAnalysis).catch(()=>{}));setInterval(()=>{if(document.getElementById('analysis').classList.contains('active'))renderAnalysis();updateHome()},600000);
 })();
 </script>
   <style>
@@ -417,7 +432,7 @@
     .level-grid button{min-height:76px;padding:10px 6px!important;line-height:1.15}.level-grid button small{display:block;margin-top:6px;color:#638397;font-size:10px;font-weight:700;line-height:1.25;white-space:pre-line}.level-grid button.selected small{color:#087b9b}
   </style>
   <script>
-    (()=>{const notes={beginner:'처음 타보거나\n기본 자세를 연습 중',intermediate:'파도를 골라 타고\n기본 턴이 가능해요',advanced:'경험이 풍부하고\n여러 기술을 소화해요'};const addNotes=()=>document.querySelectorAll('.level-grid button[data-level]').forEach(b=>{if(b.querySelector('small'))return;const s=document.createElement('small');s.textContent=notes[b.dataset.level];b.append(s)});new MutationObserver(addNotes).observe(document.body,{childList:true,subtree:true});addNotes()})();
+    (()=>{const notes={beginner:'처음 타보거나\n기본 자세를 연습 중',intermediate:'파도를 골라 타고\n기본 턴이 가능해요',advanced:'경험이 풍부하고\n여러 기술을 소화해요'};const addNotes=()=>document.querySelectorAll('.level-grid button[data-level]').forEach(b=>{if(b.querySelector('small'))return;const s=document.createElement('small');s.textContent=notes[b.dataset.level];b.append(s)});addNotes()})();
   </script>
   <style>
     .logout-btn{margin-top:14px;padding:10px 13px;border-radius:11px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.5);color:#fff;font-size:12px;font-weight:800}.beach-search-message{margin-top:8px;padding:9px 10px;border-radius:10px;background:#fff1ed;color:#b54f37;font-size:11px;font-weight:800}.rental-map-card{margin:18px 0 0;border-radius:18px;overflow:hidden;border:1px solid #cbeaf3;background:#fff}.rental-map-head{padding:14px 15px 10px;text-align:center}.rental-map-head h3{margin:0;color:#075786;font-size:15px}.rental-map-head p{margin:4px 0 0;color:#68899c;font-size:11px}.rental-location-map{height:245px;width:100%}.rental-map-note{padding:10px 14px;background:#f3fbfe;color:#5b8093;text-align:center;font-size:10px}
@@ -433,7 +448,7 @@
       window.searchHomeBeach=function(button){const input=button.parentElement.querySelector('input'),key=cleanName(input.value.trim()),beach=beachNames[key];input.parentElement.parentElement.querySelector('.beach-search-message')?.remove();if(!beach){showSearchMessage(input,'존재하지 않는 해수욕장입니다. 부산의 해수욕장 이름을 입력해 주세요.');input.focus();return}selectBeach(beach,button);const dashboard=document.querySelector('#analysis .dashboard');dashboard.querySelector('.nearby-rentals')?.remove();dashboard.querySelector('.rental-map-card')?.remove();const label=key+' 해수욕장';dashboard.insertAdjacentHTML('beforeend','<section class="nearby-rentals"><h3>🛟 '+label+' 근처 장비 대여점</h3><p>선택한 해수욕장 주변의 추천 대여점이에요.</p><div class="nearby-rental-row"><div><b>웨이브 렌탈 스테이션</b><small>서핑보드 · 도보 4분 · ★ 4.8</small></div><button onclick="rental()">대여 보기</button></div><div class="nearby-rental-row"><div><b>부산 오션 기어</b><small>패들보드 · 도보 7분 · ★ 4.7</small></div><button onclick="rental()">대여 보기</button></div></section>');setTimeout(()=>showRentalMap(beach,label),350)};
       window.bscLogout=()=>{localStorage.removeItem('bsc-member-profile');window.location.href=window.location.pathname};
       function addLogout(){const hero=document.querySelector('#profile .profile-hero');if(hero&&!hero.querySelector('.logout-btn'))hero.insertAdjacentHTML('beforeend','<button class="logout-btn" onclick="bscLogout()">로그아웃</button>')}
-      new MutationObserver(addLogout).observe(document.querySelector('#profile'),{childList:true,subtree:true});addLogout();
+      addLogout();
     })();
   </script>
   <style>
@@ -455,7 +470,7 @@
       function regionalRecommendation(beach){const profile=getProfile(),lang=getLang(),l=langText[lang],name=(profile.name||'회원');const level=profile.level||'beginner',wave=parseFloat(document.querySelector('.metric b')?.textContent)||.7,wind=parseFloat(document.querySelectorAll('.metric b')[1]?.textContent)||3.4;const base={songjeong:['A','B','C'],haeundae:['B','C','E'],gwangalli:['A','B','D'],songdo:['A','D','E'],dadaepo:['B','E','F'],ilgwang:['A','C','E'],imrang:['B','D','F']}[beach]||['A','B','C'];let zone=base[level==='beginner'?0:level==='intermediate'?1:2];if(level==='advanced'&&wave<.6&&wind<3)zone=base[1];document.querySelectorAll('.personal-ai,.regional-ai').forEach(el=>el.remove());const target=document.querySelector('.ai-panel')||document.querySelector('.dashboard .live');if(target)target.insertAdjacentHTML('afterend','<section class="regional-ai"><small>'+l.analysis+'</small><h3>'+name+'님 · '+beachData[beach][lang]+' '+l.ai+' <strong>'+zone+' '+l.zone+'</strong></h3><p>'+l.notice+'</p></section>');document.querySelectorAll('.zone').forEach(el=>el.classList.toggle('active',el.textContent.trim().startsWith(zone+'구역')))}
       const previousSelect=window.selectBeach;window.selectBeach=function(beach,button){previousSelect(beach,button);setTimeout(()=>regionalRecommendation(beach),30)};
       const previousSearch=window.searchHomeBeach;window.searchHomeBeach=function(button){const input=button.parentElement.querySelector('input'),term=input.value.trim().toLowerCase().replace(/\s/g,'').replace(/해수욕장|beach|海水浴場|海水浴场/g,''),beach=names[term],lang=getLang(),l=langText[lang];input.parentElement.parentElement.querySelector('.beach-search-message')?.remove();if(!beach){input.parentElement.insertAdjacentHTML('afterend','<p class="beach-search-message" role="alert">'+l.notFound+'</p>');input.focus();return}const original=input.value;input.value=beachData[beach].ko.replace(' 해수욕장','');previousSearch(button);input.value=original;setTimeout(()=>{const rental=document.querySelector('.nearby-rentals');if(rental){rental.querySelector('h3').innerHTML='🛟 '+beachData[beach][lang]+' '+l.rental;const map=document.querySelector('.rental-map-card');if(map)map.querySelector('h3').textContent='📍 '+beachData[beach][lang]+' '+l.map}},380)};
-      new MutationObserver(localizeSearch).observe(document.body,{childList:true,subtree:true});localizeSearch();
+      localizeSearch();
     })();
   </script>
   <script>
@@ -476,8 +491,43 @@
     })();
   </script>
 </body></html>
+<script>
+  (() => {
+    let communityLoadPromise;
+    window.BSC_LOAD_COMMUNITY = () => {
+      if (window.BSC_COMMUNITY_OPEN) return Promise.resolve();
+      if (communityLoadPromise) return communityLoadPromise;
+      communityLoadPromise = (async () => {
+        const blocks = [...document.querySelectorAll('script[type="text/bsc-community"]')];
+        for (const block of blocks) {
+          const src = block.dataset.src;
+          if (src) {
+            await new Promise((resolve, reject) => {
+              const script = document.createElement('script');
+              const timer = setTimeout(() => reject(new Error('커뮤니티 연결 시간 초과')), 8000);
+              script.src = src;
+              script.onload = () => { clearTimeout(timer); resolve(); };
+              script.onerror = () => { clearTimeout(timer); reject(new Error('커뮤니티 연결 실패')); };
+              document.head.append(script);
+            });
+          } else {
+            try { (0, eval)(block.textContent); }
+            catch (error) { console.error('커뮤니티 모듈 실행 오류', error); }
+          }
+        }
+        if (typeof window.community !== 'function') throw new Error('커뮤니티 화면을 준비하지 못했습니다.');
+        window.BSC_COMMUNITY_OPEN = window.community;
+        window.community = window.BSC?.community || window.community;
+      })().catch(error => {
+        communityLoadPromise = null;
+        throw error;
+      });
+      return communityLoadPromise;
+    };
+  })();
+</script>
 <!-- BSC Supabase Community Upgrade -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script type="text/bsc-community" data-src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
   .bsc-community-status {
@@ -574,16 +624,23 @@
   }
 </style>
 
-<script>
+<script type="text/bsc-community">
 (() => {
+  if (!window.supabase) {
+    console.warn('커뮤니티 연결을 불러오지 못해 기본 화면으로 시작합니다.');
+    return;
+  }
   const SUPABASE_URL = 'https://qoxnqmztdhlbwzwgntkc.supabase.co';
   const SUPABASE_PUBLISHABLE_KEY =
     'sb_publishable_iuh253NYT7p1D7QMToox1w_ab5Q1CS3';
 
-  const bscDb = window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_PUBLISHABLE_KEY
-  );
+  const bscDb = window.BSC_COMMUNITY_DB ||
+    window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_PUBLISHABLE_KEY
+    );
+
+  window.BSC_COMMUNITY_DB = bscDb;
 
   function escapeCommunityText(value) {
     return String(value ?? '')
@@ -852,8 +909,9 @@
   }
 </style>
 
-<script>
+<script type="text/bsc-community">
 (() => {
+  if (!window.supabase) return;
   const SUPABASE_URL =
     'https://qoxnqmztdhlbwzwgntkc.supabase.co';
 
@@ -1393,6 +1451,14 @@
 
     loadBscCommunity();
   };
+
+  window.BSC_COMMUNITY_V2 = {
+    db: communityDb,
+    posts: () => communityPosts,
+    members: () => communityMembers,
+    refreshMembers: refreshBscMembers,
+    join: joinBscCommunity
+  };
 })();
 </script>
 <!-- BSC My Groups + Chat + Leave Upgrade -->
@@ -1484,8 +1550,18 @@
   }
 </style>
 
-<script>
+<script type="text/bsc-community">
 (() => {
+  const bridge = window.BSC_COMMUNITY_V2;
+  if (!bridge) return;
+  const communityDb = bridge.db;
+  let communityPosts = bridge.posts();
+  let communityMembers = bridge.members();
+  async function refreshBscMembers() {
+    await bridge.refreshMembers();
+    communityPosts = bridge.posts();
+    communityMembers = bridge.members();
+  }
   let bscChatChannel = null;
 
   function getMyBscNickname() {
@@ -1630,9 +1706,9 @@
     window.openBscCommunityDetail(postId);
   }
 
-  const previousJoinBscCommunity = joinBscCommunity;
+  const previousJoinBscCommunity = bridge.join;
 
-  joinBscCommunity = async function(event, postId) {
+  const joinBscCommunity = async function(event, postId) {
     const nickname =
       String(event.currentTarget.elements.nickname.value || '')
         .trim();
@@ -1997,7 +2073,7 @@
   }
 </style>
 
-<script>
+<script type="text/bsc-community">
 (() => {
   if (!window.supabase) {
     console.error('Supabase library is not loaded.');
@@ -2010,10 +2086,8 @@
   const BSC_KEY =
     'sb_publishable_iuh253NYT7p1D7QMToox1w_ab5Q1CS3';
 
-  const db = window.supabase.createClient(
-    BSC_URL,
-    BSC_KEY
-  );
+  const db = window.BSC_COMMUNITY_DB;
+  if (!db) return;
 
   let posts = [];
   let members = [];
@@ -3112,14 +3186,12 @@
   }
 </style>
 
-<script>
+<script type="text/bsc-community">
 (() => {
   if (!window.supabase) return;
 
-  const db4 = window.supabase.createClient(
-    'https://qoxnqmztdhlbwzwgntkc.supabase.co',
-    'sb_publishable_iuh253NYT7p1D7QMToox1w_ab5Q1CS3'
-  );
+  const db4 = window.BSC_COMMUNITY_DB;
+  if (!db4) return;
 
   const NICK_KEY = 'bsc-active-nickname';
 
@@ -3809,14 +3881,12 @@
 })();
 </script>
 <!-- BSC Chat Send Fix -->
-<script>
+<script type="text/bsc-community">
 (() => {
   if (!window.supabase) return;
 
-  const chatFixDb = window.supabase.createClient(
-    'https://qoxnqmztdhlbwzwgntkc.supabase.co',
-    'sb_publishable_iuh253NYT7p1D7QMToox1w_ab5Q1CS3'
-  );
+  const chatFixDb = window.BSC_COMMUNITY_DB;
+  if (!chatFixDb) return;
 
   const oldOpenGroup =
     window.openBscCommunityDetail;
@@ -3994,14 +4064,12 @@
 })();
 </script>
 <!-- BSC Chat Final Fix V5 -->
-<script>
+<script type="text/bsc-community">
 (() => {
   if (!window.supabase) return;
 
-  const chatDbV5 = window.supabase.createClient(
-    'https://qoxnqmztdhlbwzwgntkc.supabase.co',
-    'sb_publishable_iuh253NYT7p1D7QMToox1w_ab5Q1CS3'
-  );
+  const chatDbV5 = window.BSC_COMMUNITY_DB;
+  if (!chatDbV5) return;
 
   function getChatNicknameV5() {
     return (
@@ -4278,14 +4346,12 @@
   }
 </style>
 
-<script>
+<script type="text/bsc-community">
 (() => {
   if (!window.supabase) return;
 
-  const db6 = window.supabase.createClient(
-    'https://qoxnqmztdhlbwzwgntkc.supabase.co',
-    'sb_publishable_iuh253NYT7p1D7QMToox1w_ab5Q1CS3'
-  );
+  const db6 = window.BSC_COMMUNITY_DB;
+  if (!db6) return;
 
   let renderingV6 = false;
   let currentPostV6 = null;
@@ -4622,14 +4688,12 @@
 })();
 </script>
 <!-- BSC After Leave Create/Join Fix V8 -->
-<script>
+<script type="text/bsc-community">
 (() => {
   if (!window.supabase) return;
 
-  const db8 = window.supabase.createClient(
-    'https://qoxnqmztdhlbwzwgntkc.supabase.co',
-    'sb_publishable_iuh253NYT7p1D7QMToox1w_ab5Q1CS3'
-  );
+  const db8 = window.BSC_COMMUNITY_DB;
+  if (!db8) return;
 
   function nick8() {
     return (
@@ -5022,14 +5086,12 @@
   }
 </style>
 
-<script>
+<script type="text/bsc-community">
 (() => {
   if (!window.supabase) return;
 
-  const db9 = window.supabase.createClient(
-    'https://qoxnqmztdhlbwzwgntkc.supabase.co',
-    'sb_publishable_iuh253NYT7p1D7QMToox1w_ab5Q1CS3'
-  );
+  const db9 = window.BSC_COMMUNITY_DB;
+  if (!db9) return;
 
   let posts9 = [];
   let members9 = [];

@@ -11,7 +11,7 @@
   const rawJournal = window.BSC.journal;
   const rawWriteJournal = window.BSC.writeJournal;
   const rawVisit = window.BSC.visit;
-  const rawCommunity = window.community;
+  const rawCommunity = window.BSC.community || window.community;
 
   function hasMember() {
     try {
@@ -121,7 +121,7 @@
       const heading = card.querySelector('h3');
       if (heading?.textContent === '해상 분석 구역') {
         const description = card.querySelector('p');
-        if (description) {
+        if (description && description.textContent !== '첨부 예시처럼 해안선을 따라 나눈 BSC 분석 구역이며, 육지와 하천은 제외했습니다.') {
           description.textContent = '첨부 예시처럼 해안선을 따라 나눈 BSC 분석 구역이며, 육지와 하천은 제외했습니다.';
         }
       }
@@ -134,7 +134,9 @@
         list?.querySelectorAll('.bsc-row').forEach(row => {
           const name = row.querySelector('b')?.textContent || '';
           const small = row.querySelector('small');
-          if (small && shopDetails[name]) small.textContent = shopDetails[name];
+          if (small && shopDetails[name] && small.textContent !== shopDetails[name]) {
+            small.textContent = shopDetails[name];
+          }
         });
       }
     });
@@ -142,10 +144,5 @@
     enhancing = false;
   }
 
-  new MutationObserver(() => queueMicrotask(enhanceUi)).observe(document.body, {
-    childList: true,
-    subtree: true,
-    characterData: true
-  });
   enhanceUi();
 })();
