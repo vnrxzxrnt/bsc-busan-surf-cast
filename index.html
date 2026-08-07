@@ -5639,3 +5639,28 @@ ${
   /* Run the product refresh after all legacy feature patches have loaded. */
   window.BSC?.refresh();
 </script>
+<script>
+  (() => {
+    if (!window.BSC) return;
+    const beaches = ['송정 해수욕장','해운대 해수욕장','광안리 해수욕장','송도 해수욕장','다대포 해수욕장','일광 해수욕장','임랑 해수욕장'];
+    const previousMy = window.BSC.my;
+    window.BSC.my = () => {
+      previousMy();
+      setTimeout(() => {
+        const button = document.querySelector('#profile button[onclick="BSC.visit()"]');
+        if (button) button.textContent = '해수욕장 방문 등록';
+      }, 0);
+    };
+    window.BSC.visit = () => {
+      openSheet('해수욕장 방문 등록', `<form class="bsc-journal-form" id="beach-visit-form"><select name="beach" required>${beaches.map(name => `<option>${name}</option>`).join('')}</select><button class="bsc-cta" type="submit">방문 등록하기</button></form>`);
+      document.getElementById('beach-visit-form').onsubmit = event => {
+        event.preventDefault();
+        const visits = JSON.parse(localStorage.getItem('bsc-visits') || '[]');
+        visits.push({beach:event.currentTarget.elements.beach.value,date:new Date().toISOString()});
+        localStorage.setItem('bsc-visits', JSON.stringify(visits));
+        closeSheet();
+        window.BSC.my();
+      };
+    };
+  })();
+</script>
