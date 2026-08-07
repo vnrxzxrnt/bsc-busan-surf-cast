@@ -85,6 +85,12 @@
       if (button.textContent !== 'MY') button.textContent = 'MY';
     });
 
+    const beachSelect = document.querySelector('#home .bsc-select');
+    const selectedBeachOption = beachSelect?.querySelector('option:checked');
+    if (beachSelect && selectedBeachOption?.value && beachSelect.firstElementChild !== selectedBeachOption) {
+      beachSelect.insertBefore(selectedBeachOption, beachSelect.firstElementChild);
+    }
+
     const navMy = document.querySelector('.nav button[data-target="profile"]');
     if (navMy && navMy.dataset.bscMy !== '1') {
       navMy.dataset.bscMy = '1';
