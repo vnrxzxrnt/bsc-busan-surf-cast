@@ -3747,3 +3747,202 @@
     };
 })();
 </script>
+<!-- BSC Chat Final Fix V5 -->
+<script>
+(() => {
+  if (!window.supabase) return;
+
+  const chatDbV5 = window.supabase.createClient(
+    'https://qoxnqmztdhlbwzwgntkc.supabase.co',
+    'sb_publishable_iuh253NYT7p1D7QMToox1w_ab5Q1CS3'
+  );
+
+  function getChatNicknameV5() {
+    return (
+      localStorage.getItem('bsc-active-nickname') ||
+      localStorage.getItem('bsc-v3-nickname') ||
+      localStorage.getItem('bsc-my-nickname') ||
+      ''
+    ).trim();
+  }
+
+  function escapeChatV5(value) {
+    return String(value ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#039;');
+  }
+
+  async function reloadChatV5(postId) {
+    const box =
+      document.getElementById('bsc4-messages');
+
+    if (!box) return;
+
+    const { data, error } =
+      await chatDbV5
+        .from('community_messages')
+        .select(
+          'id,nickname,message,created_at'
+        )
+        .eq('post_id', postId)
+        .order(
+          'created_at',
+          { ascending: true }
+        )
+        .limit(100);
+
+    if (error) {
+      console.error(error);
+
+      box.textContent =
+        '채팅을 불러오지 못했습니다.';
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      box.innerHTML =
+        '<div class="bsc-community-status">첫 메시지를 남겨보세요 🌊</div>';
+      return;
+    }
+
+    box.innerHTML =
+      data.map(row => `
+        <div class="bsc4-message">
+          <strong>
+            ${escapeChatV5(row.nickname)}
+          </strong>
+
+          <p>
+            ${escapeChatV5(row.message)}
+          </p>
+        </div>
+      `).join('');
+
+    box.scrollTop =
+      box.scrollHeight;
+  }
+
+  /*
+    capture=true로 기존 V4 submit 핸들러보다
+    먼저 채팅 전송을 처리합니다.
+  */
+  document.addEventListener(
+    'submit',
+    async event => {
+
+      const form = event.target;
+
+      if (
+        !(form instanceof HTMLFormElement) ||
+        form.id !== 'bsc4-chat-form'
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopImmediatePropagation();
+
+      const nickname =
+        getChatNicknameV5();
+
+      const input =
+        form.elements.message;
+
+      const text =
+        String(input.value || '').trim();
+
+      const button =
+        form.querySelector(
+          'button[type="submit"]'
+        );
+
+      if (!nickname) {
+        alert(
+          '닉네임 정보를 찾을 수 없습니다. 모임을 나간 후 다시 가입해 주세요.'
+        );
+        return;
+      }
+
+      if (!text) return;
+
+      button.disabled = true;
+      button.textContent = '전송 중…';
+
+      /*
+        현재 사용자가 가입한 유일한 모임을
+        DB에서 직접 찾습니다.
+      */
+      const membership =
+        await chatDbV5
+          .from('community_members')
+          .select(
+            'id,post_id,nickname'
+          )
+          .ilike(
+            'nickname',
+            nickname
+          )
+          .limit(1)
+          .maybeSingle();
+
+      if (
+        membership.error ||
+        !membership.data
+      ) {
+        console.error(
+          'membership error',
+          membership.error
+        );
+
+        button.disabled = false;
+        button.textContent = '전송';
+
+        alert(
+          '현재 가입한 모임 정보를 찾지 못했습니다.'
+        );
+        return;
+      }
+
+      const postId =
+        membership.data.post_id;
+
+      const result =
+        await chatDbV5
+          .from('community_messages')
+          .insert({
+            post_id: postId,
+            nickname: nickname,
+            message: text
+          });
+
+      button.disabled = false;
+      button.textContent = '전송';
+
+      if (result.error) {
+        console.error(
+          'chat insert error',
+          result.error
+        );
+
+        alert(
+          '채팅 전송 실패: ' +
+          (
+            result.error.message ||
+            '알 수 없는 오류'
+          )
+        );
+
+        return;
+      }
+
+      input.value = '';
+
+      await reloadChatV5(postId);
+    },
+    true
+  );
+})();
+</script>
